@@ -1,0 +1,3377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CJIS MDT — Cook County Sheriff's Office</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Roboto+Condensed:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-main:    #0a0c0f;
+    --bg-panel:   #0d1117;
+    --bg-card:    #111820;
+    --bg-hover:   #1a2435;
+    --border:     #1e2d42;
+    --border-lit: #2a4060;
+    --accent:     #1a6fb5;
+    --accent-glow:#0d5a9e;
+    --green:      #1db954;
+    --green-dim:  #0f6b30;
+    --yellow:     #e6b800;
+    --red:        #cc2233;
+    --red-dim:    #7a0f1a;
+    --orange:     #d4721a;
+    --text-pri:   #c8d8e8;
+    --text-sec:   #7a9ab8;
+    --text-dim:   #445566;
+    --text-head:  #e8f0f8;
+    --mono:       'Share Tech Mono', monospace;
+    --sans:       'Roboto Condensed', sans-serif;
+    --body:       'Roboto', sans-serif;
+  }
+
+  html, body {
+    background: var(--bg-main);
+    color: var(--text-pri);
+    font-family: var(--body);
+    font-size: 13px;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* ── CHROME BAR ─────────────────────────────── */
+  #chrome {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #060a0e;
+    border-bottom: 2px solid var(--accent);
+    padding: 0 16px;
+    height: 38px;
+    user-select: none;
+  }
+  #chrome .logo {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  #chrome .logo span { color: var(--text-sec); font-weight: 300; margin-left: 6px; font-size: 11px; letter-spacing: 2px; }
+  #clock-block {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--green);
+    text-align: right;
+    line-height: 1.3;
+  }
+  #clock-block .date-str { font-size: 10px; color: var(--text-sec); }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; color: var(--text-sec);
+    padding: 3px 10px; border: 1px solid var(--border-lit); border-radius: 2px;
+  }
+  .status-pill .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: blink 2.4s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── LAYOUT ─────────────────────────────────── */
+  #shell {
+    display: grid;
+    grid-template-columns: 200px 1fr 280px;
+    grid-template-rows: calc(100vh - 38px);
+    gap: 0;
+  }
+
+  /* ── NAV SIDEBAR ─────────────────────────────── */
+  #nav {
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .nav-section-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    padding: 14px 14px 6px;
+    text-transform: uppercase;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 14px;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-sec);
+    border-left: 3px solid transparent;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .nav-item:hover { background: var(--bg-hover); color: var(--text-pri); }
+  .nav-item.active {
+    background: rgba(26,111,181,.12);
+    color: var(--accent);
+    border-left-color: var(--accent);
+    font-weight: 700;
+  }
+  .nav-item .ni { font-size: 14px; width: 18px; text-align: center; }
+  .nav-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+  #unit-badge {
+    margin-top: auto;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.8;
+  }
+  #unit-badge .ub-unit { color: var(--yellow); font-size: 13px; }
+
+  /* ── MAIN CONTENT ────────────────────────────── */
+  #main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-main);
+  }
+
+  /* tab bar */
+  #tab-bar {
+    display: flex;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0 12px;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .tab {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    padding: 9px 16px 8px;
+    cursor: pointer;
+    color: var(--text-dim);
+    border-bottom: 2px solid transparent;
+    text-transform: uppercase;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--text-sec); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* pane visibility */
+  .pane { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+  .pane.visible { display: flex; }
+
+  /* ── QUERY PANE ──────────────────────────────── */
+  #pane-query {
+    padding: 16px;
+    overflow-y: auto;
+  }
+
+  .section-head {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+
+  .search-row {
+    display: flex; gap: 8px; align-items: flex-end; margin-bottom: 20px;
+  }
+  .field-group { display: flex; flex-direction: column; gap: 4px; }
+  .field-group label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .mdt-input {
+    background: var(--bg-card);
+    border: 1px solid var(--border-lit);
+    color: var(--text-head);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border .15s;
+    border-radius: 2px;
+  }
+  .mdt-input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-glow); }
+  .mdt-input::placeholder { color: var(--text-dim); }
+  .mdt-input.wide { width: 240px; }
+  .mdt-input.med  { width: 140px; }
+  .mdt-input.sm   { width: 90px; }
+
+  .mdt-btn {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 8px 18px;
+    border: 1px solid var(--accent);
+    background: rgba(26,111,181,.18);
+    color: var(--accent);
+    cursor: pointer;
+    transition: all .15s;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .mdt-btn:hover { background: rgba(26,111,181,.35); color: #fff; }
+  .mdt-btn.danger { border-color: var(--red); background: rgba(204,34,51,.15); color: var(--red); }
+  .mdt-btn.danger:hover { background: rgba(204,34,51,.3); }
+  .mdt-btn.success { border-color: var(--green); background: rgba(29,185,84,.12); color: var(--green); }
+  .mdt-btn.success:hover { background: rgba(29,185,84,.28); }
+  .mdt-btn.warn { border-color: var(--yellow); background: rgba(230,184,0,.1); color: var(--yellow); }
+  .mdt-btn.warn:hover { background: rgba(230,184,0,.25); }
+  .mdt-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  /* result card */
+  #result-area { display: none; }
+  #result-area.visible { display: block; }
+
+  .result-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-lit);
+    border-top: 3px solid var(--accent);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    border-radius: 2px;
+  }
+  .result-card.warrant-active { border-top-color: var(--red); }
+  .result-card.clean { border-top-color: var(--green); }
+
+  .rc-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .rc-name {
+    font-family: var(--sans);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-head);
+    letter-spacing: .5px;
+  }
+  .rc-dob { font-family: var(--mono); font-size: 10px; color: var(--text-sec); margin-top: 2px; }
+
+  .badge-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    text-transform: uppercase;
+  }
+  .badge.warrant  { background: var(--red-dim); color: #ff6677; border: 1px solid var(--red); }
+  .badge.caution  { background: rgba(212,114,26,.15); color: var(--orange); border: 1px solid var(--orange); }
+  .badge.clear    { background: var(--green-dim); color: #55ee88; border: 1px solid var(--green); }
+  .badge.violent  { background: rgba(180,20,20,.25); color: #ff5566; border: 1px solid #aa1122; }
+  .badge.sex-off  { background: rgba(100,0,100,.3); color: #dd88ff; border: 1px solid #8833aa; }
+
+  .rc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .rc-field label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    display: block;
+    letter-spacing: 1.5px;
+    margin-bottom: 3px;
+    text-transform: uppercase;
+  }
+  .rc-field .val {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-pri);
+  }
+
+  /* Prior record table */
+  .rec-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+  .rec-table th {
+    background: #080d12;
+    color: var(--text-dim);
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+  .rec-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid rgba(30,45,66,.6);
+    color: var(--text-pri);
+    vertical-align: top;
+  }
+  .rec-table tr:hover td { background: var(--bg-hover); }
+  .rec-table td.charge { color: #aac8e0; }
+  .rec-table td.dispo { }
+  .dispo-guilty  { color: var(--red); }
+  .dispo-nolle   { color: var(--yellow); }
+  .dispo-acquit  { color: var(--green); }
+
+  /* Warrant box */
+  .warrant-box {
+    border: 1px solid var(--red);
+    background: rgba(204,34,51,.08);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    border-radius: 2px;
+  }
+  .warrant-box .wb-head {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--red);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .wb-head::before { content:'⚠'; font-size:12px; }
+  .warrant-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 80px;
+    gap: 8px;
+    margin-bottom: 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-sec);
+    border-bottom: 1px solid rgba(204,34,51,.2);
+    padding-bottom: 5px;
+  }
+  .warrant-row:last-child { border: none; margin: 0; padding: 0; }
+  .warrant-row .wtype { color: #ff7788; }
+
+  /* loading spinner */
+  #loading-overlay {
+    display: none;
+    padding: 30px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-sec);
+  }
+  #loading-overlay.visible { display: block; }
+  .spinner {
+    display: inline-block;
+    width: 24px; height: 24px;
+    border: 2px solid var(--border-lit);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin-bottom: 10px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── WARRANTS / CITATIONS PANE ───────────────── */
+  #pane-warrants, #pane-cites, #pane-incidents {
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .action-bar {
+    display: flex; gap: 8px; align-items: flex-end;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+
+  .queue-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .queue-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    border-radius: 2px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 10px;
+    cursor: default;
+    transition: border-color .15s;
+  }
+  .queue-item:hover { border-color: var(--border-lit); }
+  .queue-item .qi-main { flex: 1; }
+  .qi-subject { font-family: var(--sans); font-size: 14px; font-weight: 700; color: var(--text-head); }
+  .qi-detail  { font-family: var(--mono); font-size: 10px; color: var(--text-sec); margin-top: 2px; }
+  .qi-meta    { font-family: var(--mono); font-size: 10px; color: var(--text-dim); text-align: right; line-height: 1.7; }
+  .qi-type    { font-family: var(--mono); font-size: 9px; }
+
+  /* tag pill */
+  .tag {
+    display: inline-block;
+    font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
+    padding: 2px 7px; border-radius: 2px;
+    text-transform: uppercase; font-weight: 700;
+  }
+  .tag.w  { background: rgba(204,34,51,.2);  color: var(--red);    border: 1px solid var(--red); }
+  .tag.c  { background: rgba(230,184,0,.12); color: var(--yellow); border: 1px solid var(--yellow); }
+  .tag.i  { background: rgba(26,111,181,.15);color: #5aadff;       border: 1px solid #2a7fcc; }
+  .tag.x  { background: rgba(29,185,84,.12); color: var(--green);  border: 1px solid var(--green); }
+
+  /* ── CAD / DISPATCH SIDEBAR ───────────────────── */
+  #sidebar {
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .sb-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sb-head-title {
+    font-family: var(--mono); font-size: 9px; color: var(--text-dim);
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+  .sb-calls {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .call-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--text-dim);
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all .15s;
+    border-radius: 1px;
+  }
+  .call-card:hover { border-color: var(--border-lit); border-left-color: var(--accent); }
+  .call-card.priority-1 { border-left-color: var(--red); }
+  .call-card.priority-2 { border-left-color: var(--orange); }
+  .call-card.priority-3 { border-left-color: var(--yellow); }
+  .call-card.assigned   { border-left-color: var(--green); }
+  .cc-type {
+    font-family: var(--sans); font-size: 12px; font-weight: 700;
+    color: var(--text-head); margin-bottom: 3px;
+  }
+  .cc-addr { font-family: var(--mono); font-size: 10px; color: var(--text-sec); }
+  .cc-meta { display: flex; justify-content: space-between; margin-top: 5px; }
+  .cc-id   { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
+  .cc-time { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
+  .cc-pri  { font-family: var(--mono); font-size: 9px; }
+  .pri-1 { color: var(--red); }
+  .pri-2 { color: var(--orange); }
+  .pri-3 { color: var(--yellow); }
+  .pri-a { color: var(--green); }
+
+  /* unit status panel */
+  .sb-units {
+    border-top: 1px solid var(--border);
+    padding: 8px;
+    flex-shrink: 0;
+  }
+  .unit-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 4px;
+    font-family: var(--mono); font-size: 10px;
+    border-bottom: 1px solid rgba(30,45,66,.4);
+  }
+  .unit-row:last-child { border: none; }
+  .u-id   { color: var(--yellow); font-size: 11px; font-weight: 700; width: 50px; }
+  .u-name { color: var(--text-sec); flex: 1; font-size: 10px; }
+  .u-stat {
+    font-size: 9px; padding: 2px 6px; border-radius: 2px; font-weight: 700; letter-spacing: 1px;
+  }
+  .u-10-8  { background: rgba(29,185,84,.15);  color: var(--green); }
+  .u-10-7  { background: rgba(100,100,100,.15); color: #666; }
+  .u-10-6  { background: rgba(26,111,181,.15);  color: #5aadff; }
+  .u-10-97 { background: rgba(212,114,26,.15);  color: var(--orange); }
+
+  /* modal overlay */
+  #modal-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.7);
+    z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  #modal-backdrop.visible { display: flex; }
+  .modal {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-lit);
+    border-top: 3px solid var(--accent);
+    width: 520px;
+    max-width: 95vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-radius: 2px;
+  }
+  .modal.danger-border { border-top-color: var(--red); }
+  .modal-head {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-title {
+    font-family: var(--sans); font-size: 14px; font-weight: 700;
+    color: var(--text-head); letter-spacing: .5px;
+  }
+  .modal-close {
+    font-family: var(--mono); font-size: 16px; color: var(--text-dim);
+    cursor: pointer; padding: 0 4px; line-height: 1;
+  }
+  .modal-close:hover { color: var(--text-pri); }
+  .modal-body { padding: 16px 18px; }
+  .modal-foot {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 8px;
+  }
+
+  .form-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .form-col { display: flex; flex-direction: column; gap: 4px; }
+  .form-col label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
+  .form-col select {
+    background: var(--bg-card);
+    border: 1px solid var(--border-lit);
+    color: var(--text-pri);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 10px;
+    outline: none;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .form-col select:focus { border-color: var(--accent); }
+  .form-col textarea {
+    background: var(--bg-card);
+    border: 1px solid var(--border-lit);
+    color: var(--text-pri);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 10px;
+    outline: none;
+    resize: vertical;
+    min-height: 70px;
+    border-radius: 2px;
+    width: 100%;
+  }
+  .form-col textarea:focus { border-color: var(--accent); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg-main); }
+  ::-webkit-scrollbar-thumb { background: var(--border-lit); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  /* panic mode */
+  body.panic-mode #chrome { border-bottom-color: var(--red) !important; animation: panic-flash .5s ease-in-out infinite alternate; }
+  @keyframes panic-flash { from { background: #060a0e; } to { background: #2a0008; } }
+  body.panic-mode #panic-btn { background: var(--red) !important; color: #fff !important; animation: panic-pulse .6s ease-in-out infinite alternate; }
+  @keyframes panic-pulse { from { box-shadow: 0 0 6px var(--red); } to { box-shadow: 0 0 20px var(--red), 0 0 40px rgba(204,34,51,.4); } }
+  body.panic-mode .status-pill .dot { background: var(--red) !important; box-shadow: 0 0 8px var(--red) !important; }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 18px; right: 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-lit);
+    border-left: 3px solid var(--green);
+    padding: 10px 16px;
+    font-family: var(--mono); font-size: 11px; color: var(--text-pri);
+    border-radius: 2px;
+    z-index: 200;
+    opacity: 0; transform: translateY(10px);
+    transition: all .25s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.err  { border-left-color: var(--red); }
+
+  /* no-result */
+  .no-result {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 20px;
+    text-align: center;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--yellow);
+    border-radius: 2px;
+  }
+
+  .crime-select-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+
+  /* system banner */
+  #sys-banner {
+    background: rgba(26,111,181,.1);
+    border-bottom: 1px solid rgba(26,111,181,.25);
+    padding: 4px 14px;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--text-sec);
+    display: flex; gap: 20px; flex-shrink: 0;
+    letter-spacing: .3px;
+  }
+  #sys-banner span { color: var(--text-dim); }
+  #sys-banner b { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- TOP CHROME -->
+<div id="chrome">
+  <div class="logo">COOK COUNTY SO <span>// CJIS MDT v4.11</span></div>
+  <div class="status-pill"><div class="dot"></div>CONNECTED — DISTRICT 7 SECTOR B</div>
+  <div id="clock-block">
+    <div id="clock-time">00:00:00</div>
+    <div class="date-str" id="clock-date">MON JAN 01 2025</div>
+  </div>
+</div>
+
+<!-- SYSTEM BANNER -->
+<div id="sys-banner">
+  <span>OFFICER:</span> <b>R. MALLORY #2247</b>
+  &nbsp;|&nbsp;
+  <span>UNIT:</span> <b>CCSO-247</b>
+  &nbsp;|&nbsp;
+  <span>SHIFT:</span> <b>EVENING 1600–2400</b>
+  &nbsp;|&nbsp;
+  <span>SECTOR:</span> <b>DISTRICT 7 / ZONE B</b>
+  &nbsp;|&nbsp;
+  <span>TERMINAL:</span> <b>MDT-082</b>
+</div>
+
+<!-- MAIN SHELL -->
+<div id="shell">
+
+  <!-- ── LEFT NAV ── -->
+  <nav id="nav">
+    <div class="nav-section-label">Query</div>
+    <div class="nav-item active" data-pane="pane-query" onclick="switchPane(this)">
+      <span class="ni">🔍</span> Person / Vehicle
+    </div>
+    <div class="nav-item" data-pane="pane-incidents" onclick="switchPane(this)">
+      <span class="ni">📋</span> Incident Reports
+    </div>
+    <hr class="nav-divider">
+    <div class="nav-section-label">Records</div>
+    <div class="nav-item" data-pane="pane-warrants" onclick="switchPane(this)">
+      <span class="ni">⚖</span> Warrants
+    </div>
+    <div class="nav-item" data-pane="pane-cites" onclick="switchPane(this)">
+      <span class="ni">🗒</span> Citations / Tickets
+    </div>
+    <hr class="nav-divider">
+    <div class="nav-section-label">Actions</div>
+    <div class="nav-item" onclick="openWarrantModal()">
+      <span class="ni">➕</span> Issue Warrant
+    </div>
+    <div class="nav-item" onclick="openCiteModal()">
+      <span class="ni">📝</span> Write Citation
+    </div>
+    <div class="nav-item" onclick="openIncidentModal()">
+      <span class="ni">📁</span> New Incident
+    </div>
+    <div id="unit-badge">
+      <div class="ub-unit">CCSO-247</div>
+      STATUS: <span id="my-status-label">10-8 AVAILABLE</span><br>
+      ZONE: DISTRICT 7-B<br>
+      CALLS THIS SHIFT: <span id="calls-count">0</span>
+    </div>
+  </nav>
+
+  <!-- ── MAIN CONTENT ── -->
+  <div id="main">
+    <div id="tab-bar">
+      <div class="tab active" data-tab="0" onclick="switchTab(this,0)">PERSON QUERY</div>
+      <div class="tab" data-tab="1" onclick="switchTab(this,1)">VEHICLE QUERY</div>
+      <div class="tab" data-tab="2" onclick="switchTab(this,2)">GANG / ORG</div>
+    </div>
+
+    <!-- PERSON QUERY PANE -->
+    <div class="pane visible" id="pane-query">
+      <div style="padding:16px 16px 0; flex-shrink:0;">
+        <div class="section-head">NCIC / STATE QUERY — PERSON</div>
+        <div id="tab-content-0">
+          <div class="search-row">
+            <div class="field-group">
+              <label>LAST NAME</label>
+              <input class="mdt-input med" id="inp-last" placeholder="SMITH" type="text">
+            </div>
+            <div class="field-group">
+              <label>FIRST NAME</label>
+              <input class="mdt-input med" id="inp-first" placeholder="JOHN" type="text">
+            </div>
+            <div class="field-group">
+              <label>DOB (MM/DD/YYYY)</label>
+              <input class="mdt-input med" id="inp-dob" placeholder="01/01/1990" type="text">
+            </div>
+            <div class="field-group">
+              <label>DL / SSN</label>
+              <input class="mdt-input sm" id="inp-dl" placeholder="DL#" type="text">
+            </div>
+            <button class="mdt-btn" onclick="runQuery()" style="margin-bottom:1px;">▶ QUERY NCIC</button>
+            <button class="mdt-btn" onclick="clearResults()" style="margin-bottom:1px; background:transparent; border-color:var(--border-lit); color:var(--text-sec)">CLEAR</button>
+          </div>
+        </div>
+        <div id="tab-content-1" style="display:none;">
+          <div class="search-row">
+            <div class="field-group">
+              <label>LICENSE PLATE</label>
+              <input class="mdt-input sm" id="inp-plate" placeholder="ABC-1234" type="text">
+            </div>
+            <div class="field-group">
+              <label>STATE</label>
+              <input class="mdt-input sm" id="inp-state" placeholder="PA" type="text" style="width:60px">
+            </div>
+            <div class="field-group">
+              <label>VIN</label>
+              <input class="mdt-input wide" id="inp-vin" placeholder="1HGCM82633A004352" type="text">
+            </div>
+            <button class="mdt-btn" onclick="runVehicleQuery()">▶ QUERY DMV</button>
+          </div>
+        </div>
+        <div id="tab-content-2" style="display:none;">
+          <div class="search-row">
+            <div class="field-group">
+              <label>ORGANIZATION / ALIAS</label>
+              <input class="mdt-input wide" id="inp-gang" placeholder="Enter known alias or org name" type="text">
+            </div>
+            <button class="mdt-btn" onclick="showToast('No active intelligence entries for that organization.','err')">▶ QUERY GANGS</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div id="loading-overlay">
+        <div class="spinner"></div><br>
+        QUERYING NCIC DATABASE…<br>
+        <span style="font-size:10px;color:var(--text-dim)">CONNECTING TO STATE REPOSITORY…</span>
+      </div>
+
+      <!-- Result -->
+      <div id="result-area" style="padding:0 16px 16px; overflow-y:auto; flex:1;">
+      </div>
+    </div>
+
+    <!-- INCIDENTS PANE -->
+    <div class="pane" id="pane-incidents">
+      <div style="padding:16px 16px 0; flex-shrink:0;">
+        <div class="section-head">INCIDENT REPORTS — SHIFT LOG</div>
+        <div class="action-bar">
+          <button class="mdt-btn" onclick="openIncidentModal()">+ NEW INCIDENT</button>
+        </div>
+      </div>
+      <div style="padding:0 16px 16px; overflow-y:auto; flex:1;">
+        <div class="queue-list" id="incident-list">
+          <!-- populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- WARRANTS PANE -->
+    <div class="pane" id="pane-warrants">
+      <div style="padding:16px 16px 0; flex-shrink:0;">
+        <div class="section-head">ACTIVE WARRANTS — DISTRICT 7</div>
+        <div class="action-bar">
+          <button class="mdt-btn danger" onclick="openWarrantModal()">+ ISSUE WARRANT</button>
+        </div>
+      </div>
+      <div style="padding:0 16px 16px; overflow-y:auto; flex:1;">
+        <div class="queue-list" id="warrant-list">
+        </div>
+      </div>
+    </div>
+
+    <!-- CITATIONS PANE -->
+    <div class="pane" id="pane-cites">
+      <div style="padding:16px 16px 0; flex-shrink:0;">
+        <div class="section-head">CITATIONS / TICKETS — ISSUED THIS SHIFT</div>
+        <div class="action-bar">
+          <button class="mdt-btn warn" onclick="openCiteModal()">+ WRITE CITATION</button>
+        </div>
+      </div>
+      <div style="padding:0 16px 16px; overflow-y:auto; flex:1;">
+        <div class="queue-list" id="cite-list">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CAD SIDEBAR ── -->
+  <div id="sidebar">
+    <div class="sb-head">
+      <div class="sb-head-title">CAD DISPATCH QUEUE</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--green);" id="call-count-badge">● LIVE</div>
+    </div>
+    <div class="sb-calls" id="cad-queue">
+      <!-- populated by JS -->
+    </div>
+    <div class="sb-units">
+      <div class="nav-section-label" style="padding:6px 4px 4px;">UNIT STATUS</div>
+      <div class="unit-row"><span class="u-id">247</span><span class="u-name">MALLORY</span><span class="u-stat" id="my-unit-stat-badge" style="background:rgba(29,185,84,.15);color:var(--green)">10-8</span></div>
+      <div class="unit-row"><span class="u-id">219</span><span class="u-name">CHEN</span><span class="u-stat u-10-97">10-97</span></div>
+      <div class="unit-row"><span class="u-id">231</span><span class="u-name">HARRIS</span><span class="u-stat u-10-8">10-8</span></div>
+      <div class="unit-row"><span class="u-id">208</span><span class="u-name">KOVALSKI</span><span class="u-stat u-10-6">10-6</span></div>
+      <div class="unit-row"><span class="u-id">254</span><span class="u-name">REYES</span><span class="u-stat u-10-8">10-8</span></div>
+      <div class="unit-row"><span class="u-id">262</span><span class="u-name">NGUYEN</span><span class="u-stat u-10-7">10-7</span></div>
+      <!-- MY STATUS CONTROLS -->
+      <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:8px;">
+        <div class="nav-section-label" style="padding:0 4px 6px;">MY STATUS</div>
+        <div style="display:flex;flex-direction:column;gap:5px;padding:0 2px;">
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button class="status-btn active-status" data-code="10-8" onclick="setMyStatus('10-8','AVAILABLE',this)" style="flex:1;font-family:var(--mono);font-size:9px;padding:5px 4px;border:1px solid var(--green);background:rgba(29,185,84,.15);color:var(--green);cursor:pointer;border-radius:2px;letter-spacing:.5px;font-weight:700;">10-8 AVAIL</button>
+            <button class="status-btn" data-code="10-6" onclick="setMyStatus('10-6','BUSY',this)" style="flex:1;font-family:var(--mono);font-size:9px;padding:5px 4px;border:1px solid var(--border-lit);background:transparent;color:var(--text-sec);cursor:pointer;border-radius:2px;letter-spacing:.5px;font-weight:700;">10-6 BUSY</button>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button class="status-btn" data-code="10-7" onclick="setMyStatus('10-7','OFF DUTY',this)" style="flex:1;font-family:var(--mono);font-size:9px;padding:5px 4px;border:1px solid var(--border-lit);background:transparent;color:var(--text-sec);cursor:pointer;border-radius:2px;letter-spacing:.5px;font-weight:700;">10-7 OFF</button>
+            <button class="status-btn" data-code="10-97" onclick="setMyStatus('10-97','ON SCENE',this)" style="flex:1;font-family:var(--mono);font-size:9px;padding:5px 4px;border:1px solid var(--border-lit);background:transparent;color:var(--text-sec);cursor:pointer;border-radius:2px;letter-spacing:.5px;font-weight:700;">10-97 SCENE</button>
+          </div>
+          <button id="panic-btn" onclick="triggerPanic()" style="width:100%;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;padding:8px 4px;border:2px solid var(--red);background:rgba(204,34,51,.15);color:var(--red);cursor:pointer;border-radius:2px;margin-top:2px;transition:all .15s;">⚠ PANIC ALARM</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL BACKDROP -->
+<div id="modal-backdrop">
+  <div class="modal" id="modal-box">
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title">Modal</div>
+      <div class="modal-close" onclick="closeModal()">✕</div>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot" id="modal-foot"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+/* ─── DATA ─────────────────────────────────────────────── */
+
+const CRIMES = [
+  // Violent
+  "18 PA C.S. § 2502(a) — Murder in the First Degree",
+  "18 PA C.S. § 2502(b) — Murder in the Second Degree",
+  "18 PA C.S. § 2502(c) — Murder in the Third Degree",
+  "18 PA C.S. § 2503 — Voluntary Manslaughter",
+  "18 PA C.S. § 2504 — Involuntary Manslaughter",
+  "18 PA C.S. § 2701 — Simple Assault",
+  "18 PA C.S. § 2702 — Aggravated Assault",
+  "18 PA C.S. § 2706 — Terroristic Threats",
+  "18 PA C.S. § 2709 — Harassment",
+  "18 PA C.S. § 2709.1 — Stalking",
+  "18 PA C.S. § 2711 — Probable Cause — Domestic",
+  "18 PA C.S. § 2718 — Strangulation",
+  "18 PA C.S. § 2901 — Kidnapping",
+  "18 PA C.S. § 2902 — Unlawful Restraint",
+  "18 PA C.S. § 2903 — False Imprisonment",
+  "18 PA C.S. § 3121 — Rape",
+  "18 PA C.S. § 3122.1 — Statutory Sexual Assault",
+  "18 PA C.S. § 3123 — Involuntary Deviate Sexual Intercourse",
+  "18 PA C.S. § 3124.1 — Sexual Assault",
+  "18 PA C.S. § 3126 — Indecent Assault",
+  "18 PA C.S. § 3127 — Indecent Exposure",
+  "18 PA C.S. § 3131 — Unlawful Dissemination of Intimate Image",
+  // Property
+  "18 PA C.S. § 3301 — Arson",
+  "18 PA C.S. § 3304 — Criminal Mischief",
+  "18 PA C.S. § 3311 — Ecoterrorism",
+  "18 PA C.S. § 3501 — Robbery",
+  "18 PA C.S. § 3502 — Burglary",
+  "18 PA C.S. § 3503 — Criminal Trespass",
+  "18 PA C.S. § 3701 — Robbery",
+  "18 PA C.S. § 3702 — Robbery of Motor Vehicle",
+  "18 PA C.S. § 3921 — Theft by Unlawful Taking",
+  "18 PA C.S. § 3922 — Theft by Deception",
+  "18 PA C.S. § 3925 — Receiving Stolen Property",
+  "18 PA C.S. § 3928 — Unauthorized Use of Automobile",
+  "18 PA C.S. § 3929 — Retail Theft",
+  "18 PA C.S. § 3932 — Theft of Trade Secrets",
+  "18 PA C.S. § 3934 — Theft from Motor Vehicle",
+  // Drugs
+  "35 P.S. § 780-113(a)(30) — PWID Schedule I/II Controlled Substance",
+  "35 P.S. § 780-113(a)(16) — Possession of Controlled Substance",
+  "35 P.S. § 780-113(a)(12) — Acquisition by Fraud",
+  "35 P.S. § 780-113(a)(32) — Delivery of Controlled Substance to Minor",
+  "35 P.S. § 780-113(a)(19) — Manufacture / Delivery — Schedule II",
+  "18 PA C.S. § 7508 — Drug Trafficking Sentencing & Penalties",
+  "35 P.S. § 780-113(a)(31) — PWID — Marijuana",
+  // Weapons
+  "18 PA C.S. § 6105 — Persons Not to Possess Firearms",
+  "18 PA C.S. § 6106 — Firearms Not to Be Carried w/o License",
+  "18 PA C.S. § 6108 — Carrying Firearms on Public Streets",
+  "18 PA C.S. § 6110.1 — Possession of Firearm by Minor",
+  "18 PA C.S. § 6111 — Sale or Transfer of Firearms",
+  "18 PA C.S. § 6301 — Corruption of Minors",
+  "18 PA C.S. § 908 — Prohibited Offensive Weapons",
+  "18 PA C.S. § 912 — Possession of Weapon on School Property",
+  // DUI / Traffic
+  "75 PA C.S. § 3802(a)(1) — DUI — General Impairment",
+  "75 PA C.S. § 3802(b) — DUI — High BAC (.10-.159)",
+  "75 PA C.S. § 3802(c) — DUI — Highest BAC (.16+)",
+  "75 PA C.S. § 3802(d) — DUI — Controlled Substance",
+  "75 PA C.S. § 3732 — Aggravated Assault by Vehicle",
+  "75 PA C.S. § 3735 — Homicide by Vehicle While DUI",
+  "75 PA C.S. § 3742 — Accidents Involving Death or Personal Injury",
+  "75 PA C.S. § 3301 — Driving on Right Side of Roadway",
+  "75 PA C.S. § 3361 — Driving Vehicle at Safe Speed",
+  "75 PA C.S. § 3362 — Maximum Speed Limits",
+  "75 PA C.S. § 3714 — Careless Driving",
+  "75 PA C.S. § 3736 — Reckless Driving",
+  "75 PA C.S. § 3341 — Duty to Stop for Traffic-Control Signals",
+  "75 PA C.S. § 4303 — Required Lamps",
+  "75 PA C.S. § 1786 — Required Financial Responsibility",
+  "75 PA C.S. § 1501 — Driving While Operating Privilege is Suspended",
+  "75 PA C.S. § 1543(b) — DUS — DUI Related",
+  "75 PA C.S. § 3345 — Failure to Stop for School Bus",
+  // Fraud / Financial
+  "18 PA C.S. § 4101 — Forgery",
+  "18 PA C.S. § 4106 — Access Device Fraud",
+  "18 PA C.S. § 4107 — Deceptive Business Practices",
+  "18 PA C.S. § 4111 — Stealing or Receiving Stolen Credit Cards",
+  "18 PA C.S. § 4120 — Identity Theft",
+  "18 PA C.S. § 4130 — False Identification to Law Enforcement",
+  "18 PA C.S. § 4904 — Unsworn Falsification to Authorities",
+  "18 PA C.S. § 4906 — False Reports to Law Enforcement",
+  "18 PA C.S. § 4114 — Securing Execution of Documents by Deception",
+  // Public Order
+  "18 PA C.S. § 5101 — Obstruction of Justice",
+  "18 PA C.S. § 5102 — Perjury",
+  "18 PA C.S. § 5104 — Resisting Arrest or Other Law Enforcement",
+  "18 PA C.S. § 5105 — Hindering Apprehension or Prosecution",
+  "18 PA C.S. § 5106 — Failure to Report Injuries",
+  "18 PA C.S. § 5107 — Aiding Consummation of Crime",
+  "18 PA C.S. § 5108 — Compounding",
+  "18 PA C.S. § 5110 — Escape",
+  "18 PA C.S. § 5121 — Escape",
+  "18 PA C.S. § 5122 — Weapons or Implements for Escape",
+  "18 PA C.S. § 5501 — Riot",
+  "18 PA C.S. § 5502 — Failure of Disorderly Persons to Disperse",
+  "18 PA C.S. § 5503 — Disorderly Conduct",
+  "18 PA C.S. § 5505 — Public Drunkenness",
+  "18 PA C.S. § 5507 — Obstructing Highways",
+  "18 PA C.S. § 5510 — Loitering and Prowling at Night",
+  "18 PA C.S. § 6308 — Purchase, Consumption, or Possession of Liquor — Minor",
+  // Cyber / Other
+  "18 PA C.S. § 7601 — Computer Offenses",
+  "18 PA C.S. § 7603 — Unlawful Use of Computer",
+  "18 PA C.S. § 7611 — Unlawful Duplication",
+  "18 PA C.S. § 7612 — Criminal Invasion of Computer Privacy",
+  "18 PA C.S. § 7614 — Distribution of Computer Virus",
+  "18 PA C.S. § 3930 — Theft of Intellectual Property",
+  "18 PA C.S. § 4952 — Intimidation of Witnesses or Victims",
+  "18 PA C.S. § 4953 — Retaliation Against Witness",
+  "18 PA C.S. § 2705 — Recklessly Endangering Another Person",
+  "18 PA C.S. § 5902 — Prostitution and Related Offenses",
+  "18 PA C.S. § 5903 — Obscene and Other Sexual Materials",
+  "18 PA C.S. § 5904 — Public Exhibition of Films",
+  "18 PA C.S. § 6312 — Sexual Abuse of Children — Production",
+  "18 PA C.S. § 6318 — Unlawful Contact with Minor",
+  "18 PA C.S. § 6320 — Sexual Exploitation of Children",
+  "18 PA C.S. § 2803 — Causing or Risking Catastrophe",
+  "18 PA C.S. § 5511 — Cruelty to Animals",
+  "18 PA C.S. § 4902 — Perjury",
+  "18 PA C.S. § 4910 — Tampering with / Fabricating Physical Evidence",
+];
+
+const WARRANT_TYPES = ["Arrest Warrant", "Bench Warrant", "Search Warrant", "Failure to Appear", "Extradition Warrant", "Civil Warrant"];
+const DISPOSITIONS = ["GUILTY PLEA", "CONVICTED", "NOLLE PROSEQUI", "ACQUITTED", "ARD PROGRAM", "PROBATION", "DISMISSED", "PENDING TRIAL"];
+const DISPO_CLASS = { "GUILTY PLEA":"dispo-guilty","CONVICTED":"dispo-guilty","NOLLE PROSEQUI":"dispo-nolle","ACQUITTED":"dispo-acquit","DISMISSED":"dispo-acquit","ARD PROGRAM":"dispo-nolle","PROBATION":"dispo-nolle","PENDING TRIAL":"dispo-nolle" };
+
+const CALL_TYPES = ["10-33 ALARM", "10-16 DOMESTIC", "415 DISTURBANCE", "10-50 MVA", "211 ROBBERY", "10-52 AMBULANCE NEEDED", "459 BURGLARY", "10-31 CRIME IN PROGRESS", "415F FIGHT", "10-97 ARRIVED SCENE", "594 VANDALISM", "647F DRUNK IN PUBLIC", "10-54 LIVESTOCK ON HWY", "602 TRESPASSING", "148 RESIST ARREST"];
+const STREETS = ["1400 BLK N. HIGHLAND AVE", "700 BLK OAK STREET", "RIDGEMONT BLVD & 5TH ST", "2200 BLK MAPLE DRIVE", "CENTRAL AVE & COMMERCE ST", "900 BLK WESTFIELD RD", "450 BLK PARK PLACE", "DOWNTOWN TRANSIT HUB", "3100 BLK PINE RIDGE PKWY", "FAIRVIEW MALL PARKING LEVEL 2", "HARBOR ST & INDUSTRIAL WAY", "580 BLK LAKEVIEW TERRACE"];
+
+const firstNames = ["JAMES","MARCUS","DEJA","TYRONE","ASHLEY","ROBERTO","KEVIN","SHANNON","DARNELL","BRITTANY","AHMAD","CRYSTAL","WILLIAM","LATASHA","CARLOS","JESSICA","JEROME","HEATHER","DEVON","MIRANDA","PAUL","TABITHA","LAMAR","STEPHANIE","ANDRE","JENNIFER","MALIK","COURTNEY","JOSE","AMANDA"];
+const lastNames  = ["JOHNSON","WILLIAMS","SMITH","BROWN","JONES","GARCIA","MILLER","DAVIS","MARTINEZ","WILSON","ANDERSON","TAYLOR","THOMAS","HERNANDEZ","MOORE","JACKSON","MARTIN","LEE","PEREZ","THOMPSON","WHITE","HARRIS","WALKER","LEWIS","ROBINSON","CLARK","RODRIGUEZ","HALL","YOUNG","ALLEN"];
+
+const RACES = ["B/M","B/F","W/M","W/F","H/M","H/F","A/M","A/F"];
+const EYES  = ["BRN","BLK","BLU","GRN","HAZ","GRY"];
+const HAIR  = ["BLK","BRN","RED","BLD","GRY","WHI","BLU","ONG"];
+const BLDS  = ["SLD","MED","THN","HVY"];
+const CITIES= ["RIDGEMONT","PITTSBURG","HIGHLAND PARK","WESTVIEW","CASTON","MAPLEWOOD","CENTERFIELD"];
+const STATES_LIST = ["PA","OH","WV","NY","MD","NJ","DE","VA"];
+
+/* ─── STATE ─────────────────────────────────────────────── */
+let warrants  = [];
+let citations = [];
+let incidents = [];
+let callsThisShift = 0;
+let cadCalls  = [];
+
+/* ─── CLOCK ────────────────────────────────────────────── */
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock-time').textContent =
+    now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  document.getElementById('clock-date').textContent =
+    now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'2-digit',year:'numeric'}).toUpperCase();
+}
+setInterval(updateClock,1000); updateClock();
+
+/* ─── PANE / TAB SWITCHING ─────────────────────────────── */
+function switchPane(el){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  const target = el.dataset.pane;
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('visible'));
+  document.getElementById(target).classList.add('visible');
+}
+
+function switchTab(el,idx){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  for(let i=0;i<3;i++){
+    const c = document.getElementById('tab-content-'+i);
+    if(c) c.style.display = i===idx?'block':'none';
+  }
+  clearResults();
+}
+
+/* ─── HELPERS ───────────────────────────────────────────── */
+function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function randDate(startY,endY){
+  const y=randInt(startY,endY), m=String(randInt(1,12)).padStart(2,'0'), d=String(randInt(1,28)).padStart(2,'0');
+  return m+'/'+d+'/'+y;
+}
+function padZ(n,z=2){ return String(n).padStart(z,'0'); }
+function fmtNow(){
+  const n=new Date();
+  return `${padZ(n.getMonth()+1)}/${padZ(n.getDate())}/${n.getFullYear()} ${padZ(n.getHours())}:${padZ(n.getMinutes())}`;
+}
+function oid(){ return '#'+String(Math.floor(Math.random()*9000000+1000000)); }
+
+function showToast(msg, type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='show'+(type==='err'?' err':'');
+  setTimeout(()=>{ t.className=''; },3200);
+}
+
+/* ─── NCIC PERSON QUERY ─────────────────────────────────── */
+function clearResults(){
+  document.getElementById('result-area').innerHTML='';
+  document.getElementById('result-area').classList.remove('visible');
+}
+
+function runQuery(){
+  const last  = document.getElementById('inp-last').value.trim().toUpperCase() || rand(lastNames);
+  const first = document.getElementById('inp-first').value.trim().toUpperCase() || rand(firstNames);
+  if(!last && !first){ showToast('Enter at least a last name or first name.','err'); return; }
+
+  clearResults();
+  const lo = document.getElementById('loading-overlay');
+  lo.classList.add('visible');
+
+  const delay = randInt(900,2200);
+  setTimeout(()=>{
+    lo.classList.remove('visible');
+    const found = Math.random()>.12;
+    if(!found){
+      document.getElementById('result-area').innerHTML = `<div class="no-result">⚠ QUERY COMPLETE — NO RECORD FOUND IN NCIC/STATE REPOSITORY<br><span style="color:var(--text-dim);font-size:10px;margin-top:4px;display:block">NAME: ${first} ${last} &nbsp;|&nbsp; CHECKED AT ${fmtNow()}</span></div>`;
+      document.getElementById('result-area').classList.add('visible');
+      return;
+    }
+    const person = generatePerson(first, last);
+    renderPersonResult(person);
+  }, delay);
+}
+
+function generatePerson(first, last){
+  const hasWarrant  = Math.random()>.55;
+  const isViolent   = Math.random()>.7;
+  const isSexOff    = Math.random()>.88;
+  const numPriors   = randInt(0, 9);
+  const dob         = randInt(1,28).toString().padStart(2,'0')+'/'+randInt(1,12).toString().padStart(2,'0')+'/'+randInt(1958,2004);
+  const dlNum       = rand(STATES_LIST)+randInt(10000000,99999999);
+  const ssn         = `XXX-XX-${randInt(1000,9999)}`;
+  const height      = `${randInt(5,6)}'${randInt(0,11)}"`;
+  const weight      = `${randInt(120,280)} LBS`;
+  const addr        = `${randInt(100,9999)} ${rand(['OAK','MAPLE','PINE','ELM','RIDGE','HIGHLAND','CEDAR','MAIN'])} ${rand(['ST','AVE','DR','BLVD','LN','CT'])}, ${rand(CITIES)}, ${rand(STATES_LIST)}`;
+
+  const myWarrants  = [];
+  if(hasWarrant){
+    const wCount = randInt(1,3);
+    for(let i=0;i<wCount;i++){
+      myWarrants.push({
+        type: rand(WARRANT_TYPES),
+        charge: rand(CRIMES),
+        issued: randDate(2019,2024),
+        caseNum: 'CP-'+randInt(1,99).toString().padStart(2,'0')+'-CR-'+randInt(1000000,9999999),
+        court: rand(['Ridgemont County CP', 'District Court 7-4-02','Common Pleas Court','Magisterial Court 7-3-01']),
+        bail: randInt(0,1)===0 ? 'NO BAIL' : '$'+randInt(500,50000).toLocaleString(),
+      });
+    }
+  }
+
+  const priors = [];
+  for(let i=0;i<numPriors;i++){
+    priors.push({
+      date:   randDate(2010,2023),
+      charge: rand(CRIMES),
+      agency: rand(['RPD','PGPD','MSP','CCSO','FBI','DEA','ATF']),
+      case:   'CP-'+randInt(1,99).toString().padStart(2,'0')+'-CR-'+randInt(1000000,9999999),
+      dispo:  rand(DISPOSITIONS),
+    });
+  }
+
+  return { first, last, dob, dlNum, ssn, race: rand(RACES), height, weight, eyes: rand(EYES), hair: rand(HAIR), build: rand(BLDS), addr, hasWarrant, isViolent, isSexOff, numPriors, warrants: myWarrants, priors };
+}
+
+function renderPersonResult(p){
+  const ra = document.getElementById('result-area');
+
+  let badges = '';
+  if(p.hasWarrant) badges += `<span class="badge warrant">⚠ ACTIVE WARRANT</span>`;
+  if(p.isViolent)  badges += `<span class="badge violent">VIOLENT OFFENDER</span>`;
+  if(p.isSexOff)   badges += `<span class="badge sex-off">SEX OFFENDER REG.</span>`;
+  if(!p.hasWarrant && !p.isViolent && !p.isSexOff) badges += `<span class="badge clear">NO ACTIVE WARRANTS</span>`;
+  if(p.numPriors>5) badges += `<span class="badge caution">PRIOR HISTORY</span>`;
+
+  let warrantHTML = '';
+  if(p.warrants.length){
+    const rows = p.warrants.map(w=>`
+      <div class="warrant-row">
+        <span class="wtype">${w.type.toUpperCase()}</span>
+        <span style="color:var(--text-sec)">${w.caseNum}</span>
+        <span>${w.court}</span>
+        <span style="color:var(--yellow)">${w.bail}</span>
+      </div>
+      <div style="font-family:var(--mono);font-size:10px;color:#aaa;padding:0 0 4px 0">
+        CHARGE: ${w.charge}<br>ISSUED: ${w.issued}
+      </div>`).join('');
+    warrantHTML = `<div class="warrant-box"><div class="wb-head">ACTIVE WARRANT(S) ON FILE — DETAIN SUBJECT</div>${rows}</div>`;
+  }
+
+  let priorHTML = '';
+  if(p.priors.length){
+    const rows = p.priors.map(r=>`
+      <tr>
+        <td class="charge">${r.charge}</td>
+        <td>${r.agency}</td>
+        <td>${r.date}</td>
+        <td class="${DISPO_CLASS[r.dispo]||''}">${r.dispo}</td>
+        <td style="color:var(--text-dim);font-size:10px">${r.case}</td>
+      </tr>`).join('');
+    priorHTML = `
+      <div class="section-head" style="margin-top:12px;">PRIOR CRIMINAL HISTORY (${p.priors.length} RECORD${p.priors.length!==1?'S':''})</div>
+      <table class="rec-table">
+        <thead><tr><th>CHARGE</th><th>AGENCY</th><th>ARREST DATE</th><th>DISPOSITION</th><th>CASE #</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } else {
+    priorHTML = `<div class="no-result" style="margin-top:12px;">NO PRIOR CRIMINAL HISTORY ON FILE</div>`;
+  }
+
+  const topBorderClass = p.hasWarrant ? 'warrant-active' : (p.numPriors===0 ? 'clean' : '');
+
+  ra.innerHTML = `
+    <div style="font-family:var(--mono);font-size:9px;color:var(--green);margin-bottom:10px;margin-top:4px;">
+      ✓ QUERY COMPLETE — RECORD LOCATED — ${fmtNow()} — NCIC/STATE REPOSITORY
+    </div>
+    <div class="result-card ${topBorderClass}">
+      <div class="rc-header">
+        <div>
+          <div class="rc-name">${p.last}, ${p.first}</div>
+          <div class="rc-dob">DOB: ${p.dob} &nbsp;|&nbsp; RACE/SEX: ${p.race} &nbsp;|&nbsp; DL: ${p.dlNum}</div>
+        </div>
+        <div class="badge-row">${badges}</div>
+      </div>
+      <div class="rc-grid">
+        <div class="rc-field"><label>HEIGHT</label><div class="val">${p.height}</div></div>
+        <div class="rc-field"><label>WEIGHT</label><div class="val">${p.weight}</div></div>
+        <div class="rc-field"><label>EYES</label><div class="val">${p.eyes}</div></div>
+        <div class="rc-field"><label>HAIR</label><div class="val">${p.hair}</div></div>
+        <div class="rc-field"><label>BUILD</label><div class="val">${p.build}</div></div>
+        <div class="rc-field"><label>SSN</label><div class="val">${p.ssn}</div></div>
+        <div class="rc-field" style="grid-column:span 2"><label>ADDRESS ON FILE</label><div class="val">${p.addr}</div></div>
+      </div>
+      ${warrantHTML}
+      ${priorHTML}
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="mdt-btn danger" onclick="openWarrantModalFor('${p.last}, ${p.first}')">ISSUE WARRANT</button>
+        <button class="mdt-btn warn"   onclick="openCiteModalFor('${p.last}, ${p.first}')">WRITE CITATION</button>
+        <button class="mdt-btn"        onclick="openIncidentModalFor('${p.last}, ${p.first}')">ADD TO INCIDENT</button>
+      </div>
+    </div>`;
+  ra.classList.add('visible');
+}
+
+/* ─── VEHICLE QUERY ─────────────────────────────────────── */
+function runVehicleQuery(){
+  const plate = document.getElementById('inp-plate').value.trim().toUpperCase() || (rand(['ABC','XYZ','RPD','TMP'])+'-'+randInt(1000,9999));
+  const lo = document.getElementById('loading-overlay');
+  lo.classList.add('visible');
+  clearResults();
+  setTimeout(()=>{
+    lo.classList.remove('visible');
+    const found = Math.random()>.1;
+    if(!found){
+      document.getElementById('result-area').innerHTML = `<div class="no-result">⚠ NO VEHICLE RECORD FOUND FOR PLATE: ${plate}</div>`;
+      document.getElementById('result-area').classList.add('visible');
+      return;
+    }
+    const makes   = ["FORD","CHEVROLET","DODGE","HONDA","TOYOTA","NISSAN","HYUNDAI","BMW","MERCEDES","KIA","GMC","RAM","JEEP","VOLKSWAGEN","SUBARU"];
+    const models  = {"FORD":["FUSION","F-150","EXPLORER","MUSTANG","ESCAPE"],"CHEVROLET":["SILVERADO","MALIBU","EQUINOX","CAMARO","TAHOE"],"DODGE":["CHARGER","CHALLENGER","DURANGO","RAM 1500"],"HONDA":["CIVIC","ACCORD","CR-V","PILOT","ODYSSEY"],"TOYOTA":["CAMRY","COROLLA","4RUNNER","TACOMA","HIGHLANDER"],"NISSAN":["ALTIMA","SENTRA","ROGUE","MAXIMA","PATHFINDER"],"HYUNDAI":["SONATA","ELANTRA","TUCSON","SANTA FE"],"BMW":["3 SERIES","5 SERIES","X5","M3","X3"],"MERCEDES":["C-CLASS","E-CLASS","GLE","GLC","S-CLASS"],"KIA":["OPTIMA","SPORTAGE","SORENTO","TELLURIDE","SOUL"],"GMC":["SIERRA","YUKON","ACADIA","TERRAIN"],"RAM":["1500","2500","3500","PROMASTER"],"JEEP":["GRAND CHEROKEE","WRANGLER","COMPASS","RENEGADE"],"VOLKSWAGEN":["JETTA","PASSAT","TIGUAN","ATLAS","GOLF"],"SUBARU":["OUTBACK","FORESTER","IMPREZA","LEGACY","CROSSTREK"]};
+    const colors  = ["BLACK","WHITE","SILVER","GRAY","RED","BLUE","GREEN","TAN","BROWN","ORANGE","YELLOW","MAROON","NAVY","DARK BLUE"];
+    const make    = rand(makes);
+    const model   = rand(models[make]||["SEDAN"]);
+    const year    = randInt(2001,2024);
+    const color   = rand(colors);
+    const stolen  = Math.random()>.85;
+    const expired = Math.random()>.7;
+    const ownLast = rand(lastNames);
+    const ownFirst= rand(firstNames);
+    const vin     = ['1','2','3','4','5'].map(()=>(Math.random().toString(36).substring(2,6).toUpperCase())).join('').substring(0,17).padEnd(17,'0');
+    document.getElementById('result-area').innerHTML = `
+      <div style="font-family:var(--mono);font-size:9px;color:var(--green);margin-bottom:10px;margin-top:4px;">✓ DMV QUERY COMPLETE — ${fmtNow()}</div>
+      <div class="result-card ${stolen?'warrant-active':''}">
+        <div class="rc-header">
+          <div>
+            <div class="rc-name">${plate} — ${color} ${year} ${make} ${model}</div>
+            <div class="rc-dob">STATE: ${document.getElementById('inp-state').value||'PA'} &nbsp;|&nbsp; VIN: ${vin}</div>
+          </div>
+          <div class="badge-row">
+            ${stolen ? '<span class="badge warrant">STOLEN VEHICLE</span>' : '<span class="badge clear">NOT REPORTED STOLEN</span>'}
+            ${expired ? '<span class="badge caution">REG. EXPIRED</span>' : ''}
+          </div>
+        </div>
+        <div class="rc-grid">
+          <div class="rc-field"><label>REGISTERED OWNER</label><div class="val">${ownFirst} ${ownLast}</div></div>
+          <div class="rc-field"><label>YEAR</label><div class="val">${year}</div></div>
+          <div class="rc-field"><label>MAKE / MODEL</label><div class="val">${make} ${model}</div></div>
+          <div class="rc-field"><label>COLOR</label><div class="val">${color}</div></div>
+          <div class="rc-field"><label>PLATE</label><div class="val">${plate}</div></div>
+          <div class="rc-field"><label>REGISTRATION EXP</label><div class="val" style="color:${expired?'var(--red)':'var(--green)'}">${expired?'EXPIRED '+randDate(2020,2023):randDate(2024,2026)}</div></div>
+          <div class="rc-field"><label>INSURED</label><div class="val" style="color:${Math.random()>.3?'var(--green)':'var(--red)'}">${Math.random()>.3?'YES — STATE FARM':'NO RECORD'}</div></div>
+          <div class="rc-field"><label>LIENHOLDER</label><div class="val">${Math.random()>.5?rand(['CHASE AUTO','WELLS FARGO','TD AUTO','ALLY FINANCIAL','BOA']):'NONE'}</div></div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <button class="mdt-btn" onclick="showToast('Vehicle history report queued.','ok')">VEHICLE HISTORY</button>
+          ${stolen?'<button class="mdt-btn danger" onclick="showToast(\'Stolen vehicle flag confirmed — contact dispatch immediately.\',\'err\')">CONFIRM STOLEN</button>':''}
+        </div>
+      </div>`;
+    document.getElementById('result-area').classList.add('visible');
+  }, randInt(800,1800));
+}
+
+/* ─── CAD CALLS ─────────────────────────────────────────── */
+function generateCalls(n){
+  const calls=[];
+  const priorities = [1,1,2,2,2,3,3,3];
+  for(let i=0;i<n;i++){
+    const pri = rand(priorities);
+    const assigned = Math.random()>.6;
+    calls.push({
+      id: 'CAD'+randInt(10000,99999),
+      type: rand(CALL_TYPES),
+      addr: rand(STREETS),
+      pri,
+      time: padZ(randInt(0,23))+':'+padZ(randInt(0,59)),
+      assigned,
+      unit: assigned ? rand(['219','231','208','254','262','247']) : null,
+    });
+  }
+  return calls;
+}
+
+function renderCAD(){
+  cadCalls = generateCalls(randInt(5,9));
+  const q = document.getElementById('cad-queue');
+  q.innerHTML = cadCalls.map(c=>`
+    <div class="call-card priority-${c.pri} ${c.assigned?'assigned':''}" onclick="assignCall('${c.id}')">
+      <div class="cc-type">${c.type}</div>
+      <div class="cc-addr">${c.addr}</div>
+      <div class="cc-meta">
+        <span class="cc-id">${c.id}</span>
+        <span class="cc-pri pri-${c.pri}">P${c.pri}${c.assigned?' | UNIT '+c.unit:''}</span>
+        <span class="cc-time">${c.time}</span>
+      </div>
+    </div>`).join('');
+}
+
+function assignCall(id){
+  callsThisShift++;
+  document.getElementById('calls-count').textContent = callsThisShift;
+  showToast(`Unit CCSO-247 assigned to call ${id}. Status set to 10-97.`);
+  setTimeout(renderCAD, 800);
+}
+
+renderCAD();
+setInterval(()=>{
+  if(Math.random()>.6) renderCAD();
+}, 18000);
+
+/* ─── WARRANT MODAL ─────────────────────────────────────── */
+function openWarrantModal(subjectPrefill=''){
+  openModal('ISSUE ARREST WARRANT', buildWarrantForm(subjectPrefill), [
+    { label:'CLEAR',   cls:'',      fn:'closeModal()' },
+    { label:'SUBMIT WARRANT', cls:'danger', fn:'submitWarrant()' },
+  ], true);
+}
+function openWarrantModalFor(name){ openWarrantModal(name); }
+
+function buildWarrantForm(subjectPrefill=''){
+  const crimeOpts = CRIMES.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const wTypeOpts = WARRANT_TYPES.map(w=>`<option>${w}</option>`).join('');
+  return `
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>SUBJECT NAME</label><input class="mdt-input" id="w-subject" style="width:100%" value="${subjectPrefill}" placeholder="LAST, FIRST"></div>
+      <div class="form-col"><label>DOB</label><input class="mdt-input sm" id="w-dob" placeholder="MM/DD/YYYY"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>WARRANT TYPE</label><select id="w-type">${wTypeOpts}</select></div>
+      <div class="form-col" style="flex:1"><label>BAIL AMOUNT</label><input class="mdt-input" id="w-bail" placeholder="e.g. $10,000 or NO BAIL" style="width:100%"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="width:100%">
+        <label>CHARGE(S) — SEARCH OR SCROLL</label>
+        <input class="mdt-input" id="w-charge-search" style="width:100%;margin-bottom:5px;" placeholder="Type to search... e.g. murder, robbery, DUI, assault" oninput="filterWarrantCharges(this.value)">
+        <div style="position:relative;">
+          <select id="w-charge" size="5" style="width:100%;background:var(--bg-card);border:1px solid var(--border-lit);color:var(--text-pri);font-family:var(--mono);font-size:11px;padding:4px;border-radius:2px;outline:none;">${crimeOpts}</select>
+          <div id="w-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:3px;letter-spacing:1px;">${CRIMES.length} CHARGES LISTED</div>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>ISSUING COURT</label><input class="mdt-input" id="w-court" style="width:100%" placeholder="Cook County Circuit Court"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="width:100%"><label>NARRATIVE / PROBABLE CAUSE</label><textarea id="w-narrative" placeholder="Describe the probable cause for this warrant..."></textarea></div>
+    </div>`;
+}
+
+function filterWarrantCharges(query){
+  const sel = document.getElementById('w-charge');
+  const count = document.getElementById('w-charge-count');
+  if(!sel) return;
+  const q = query.trim().toLowerCase();
+  const filtered = q ? CRIMES.filter(c => c.toLowerCase().includes(q)) : CRIMES;
+  sel.innerHTML = filtered.map(c=>`<option value="${c}">${c}</option>`).join('');
+  if(filtered.length > 0) sel.selectedIndex = 0;
+  count.textContent = filtered.length + ' CHARGE' + (filtered.length !== 1 ? 'S' : '') + ' LISTED' + (q ? ' (FILTERED)' : '');
+  count.style.color = q && filtered.length === 0 ? 'var(--red)' : 'var(--text-dim)';
+  if(filtered.length === 0) sel.innerHTML = '<option value="" disabled>— NO MATCHES —</option>';
+}
+
+function submitWarrant(){
+  const subject = document.getElementById('w-subject').value.trim();
+  const charge  = document.getElementById('w-charge').value;
+  const wtype   = document.getElementById('w-type').value;
+  const bail    = document.getElementById('w-bail').value || 'N/A';
+  if(!subject){ showToast('Subject name is required.','err'); return; }
+  warrants.push({ id:'WRT'+randInt(100000,999999), subject, charge, wtype, bail, date: fmtNow(), officer:'R. MALLORY #2247', status:'ACTIVE' });
+  renderWarrants();
+  closeModal();
+  showToast('Warrant issued — entered into NCIC/STATE system.');
+  callsThisShift++;
+  document.getElementById('calls-count').textContent = callsThisShift;
+}
+
+function renderWarrants(){
+  const list = document.getElementById('warrant-list');
+  if(!warrants.length){
+    list.innerHTML = `<div class="no-result">NO WARRANTS ISSUED THIS SESSION</div>`;
+    return;
+  }
+  list.innerHTML = warrants.map(w=>`
+    <div class="queue-item">
+      <div class="qi-main">
+        <div class="qi-subject">${w.subject}</div>
+        <div class="qi-detail">${w.wtype} &nbsp;|&nbsp; ${w.charge}</div>
+        <div class="qi-detail" style="margin-top:3px;">BAIL: ${w.bail} &nbsp;|&nbsp; OIC: ${w.officer}</div>
+      </div>
+      <div class="qi-meta">
+        <span class="tag w">ACTIVE</span><br>
+        ${w.id}<br>
+        ${w.date}
+      </div>
+    </div>`).join('');
+}
+renderWarrants();
+
+/* ─── CITATION MODAL ─────────────────────────────────────── */
+function openCiteModal(subjectPrefill=''){
+  openModal('WRITE TRAFFIC / CRIMINAL CITATION', buildCiteForm(subjectPrefill), [
+    { label:'CANCEL', cls:'', fn:'closeModal()' },
+    { label:'ISSUE CITATION', cls:'warn', fn:'submitCite()' },
+  ]);
+}
+function openCiteModalFor(name){ openCiteModal(name); }
+
+function buildCiteForm(subjectPrefill=''){
+  const crimeOpts = CRIMES.map(c=>`<option value="${c}">${c}</option>`).join('');
+  return `
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>SUBJECT NAME</label><input class="mdt-input" id="c-subject" style="width:100%" value="${subjectPrefill}" placeholder="LAST, FIRST"></div>
+      <div class="form-col"><label>DL #</label><input class="mdt-input sm" id="c-dl" placeholder="DL#"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>VEHICLE PLATE</label><input class="mdt-input sm" id="c-plate" placeholder="ABC-1234"></div>
+      <div class="form-col"><label>STATE</label><input class="mdt-input" id="c-vstate" style="width:60px" placeholder="IL"></div>
+      <div class="form-col" style="flex:2"><label>LOCATION OF VIOLATION</label><input class="mdt-input" id="c-loc" style="width:100%" placeholder="e.g. 1400 BLK N. HIGHLAND AVE"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="width:100%">
+        <label>VIOLATION / CHARGE — SEARCH OR SCROLL</label>
+        <input class="mdt-input" id="c-charge-search" style="width:100%;margin-bottom:5px;" placeholder="Type to search... e.g. insurance, DUI, theft, assault" oninput="filterCiteCharges(this.value)">
+        <div style="position:relative;">
+          <select id="c-charge" size="5" style="width:100%;background:var(--bg-card);border:1px solid var(--border-lit);color:var(--text-pri);font-family:var(--mono);font-size:11px;padding:4px;border-radius:2px;outline:none;">${crimeOpts}</select>
+          <div id="c-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:3px;letter-spacing:1px;">${CRIMES.length} CHARGES LISTED</div>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>FINE AMOUNT</label><input class="mdt-input" id="c-fine" placeholder="$0.00" style="width:120px"></div>
+      <div class="form-col"><label>COURT DATE</label><input class="mdt-input" id="c-courtdate" placeholder="MM/DD/YYYY" style="width:130px"></div>
+      <div class="form-col"><label>SPEED</label><input class="mdt-input" id="c-speed" placeholder="e.g. 72/55" style="width:100px"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="width:100%"><label>OFFICER NOTES</label><textarea id="c-notes" placeholder="Additional notes..."></textarea></div>
+    </div>`;
+}
+
+function filterCiteCharges(query){
+  const sel = document.getElementById('c-charge');
+  const count = document.getElementById('c-charge-count');
+  if(!sel) return;
+  const q = query.trim().toLowerCase();
+  const filtered = q ? CRIMES.filter(c => c.toLowerCase().includes(q)) : CRIMES;
+  sel.innerHTML = filtered.map(c=>`<option value="${c}">${c}</option>`).join('');
+  if(filtered.length > 0) sel.selectedIndex = 0;
+  count.textContent = filtered.length + ' CHARGE' + (filtered.length !== 1 ? 'S' : '') + ' LISTED' + (q ? ' (FILTERED)' : '');
+  count.style.color = q && filtered.length === 0 ? 'var(--red)' : 'var(--text-dim)';
+  if(filtered.length === 0) sel.innerHTML = '<option value="" disabled>— NO MATCHES —</option>';
+}
+
+function submitCite(){
+  const subject = document.getElementById('c-subject').value.trim();
+  const charge  = document.getElementById('c-charge').value;
+  const fine    = document.getElementById('c-fine').value || 'N/A';
+  const loc     = document.getElementById('c-loc').value || 'UNKNOWN LOCATION';
+  if(!subject){ showToast('Subject name is required.','err'); return; }
+  citations.push({ id:'CIT'+randInt(100000,999999), subject, charge, fine, loc, date: fmtNow(), officer:'R. MALLORY #2247', status:'ISSUED' });
+  renderCitations();
+  closeModal();
+  showToast('Citation issued — logged to system.');
+}
+
+function renderCitations(){
+  const list = document.getElementById('cite-list');
+  if(!citations.length){
+    list.innerHTML = `<div class="no-result">NO CITATIONS ISSUED THIS SESSION</div>`;
+    return;
+  }
+  list.innerHTML = citations.map(c=>`
+    <div class="queue-item">
+      <div class="qi-main">
+        <div class="qi-subject">${c.subject}</div>
+        <div class="qi-detail">${c.charge}</div>
+        <div class="qi-detail" style="margin-top:3px;">LOCATION: ${c.loc} &nbsp;|&nbsp; FINE: ${c.fine}</div>
+      </div>
+      <div class="qi-meta">
+        <span class="tag c">ISSUED</span><br>
+        ${c.id}<br>
+        ${c.date}
+      </div>
+    </div>`).join('');
+}
+renderCitations();
+
+/* ─── INCIDENT MODAL ─────────────────────────────────────── */
+function openIncidentModal(subjectPrefill=''){
+  openModal('NEW INCIDENT REPORT', buildIncidentForm(subjectPrefill), [
+    { label:'CANCEL', cls:'', fn:'closeModal()' },
+    { label:'SUBMIT REPORT', cls:'success', fn:'submitIncident()' },
+  ]);
+}
+function openIncidentModalFor(name){ openIncidentModal(name); }
+
+function buildIncidentForm(subjectPrefill=''){
+  const types = ["Assault","Domestic Violence","Robbery","Burglary","Theft","MVA","DUI","Narcotics","Disorderly Conduct","Trespass","Warrant Service","Suspicious Person","Welfare Check","Found Property","Missing Person","Death Investigation","Public Intoxication","Vandalism","Stalking/Harassment","Animal Complaint","Noise Complaint","Traffic Stop","Foot Pursuit","Vehicle Pursuit","Shots Fired","Stabbing","Medical Assist","Fire Assist","Mental Health Crisis","Other"];
+  const typeOpts = types.map(t=>`<option>${t}</option>`).join('');
+  return `
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>INCIDENT TYPE</label><select id="i-type" style="width:100%">${typeOpts}</select></div>
+      <div class="form-col"><label>PRIORITY</label><select id="i-pri" style="width:90px"><option>Priority 1</option><option>Priority 2</option><option selected>Priority 3</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>LOCATION / ADDRESS</label><input class="mdt-input" id="i-loc" style="width:100%" placeholder="${rand(STREETS)}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>SUBJECT(S) INVOLVED</label><input class="mdt-input" id="i-subject" style="width:100%" value="${subjectPrefill}" placeholder="Name(s) or UNKNOWN"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="width:100%"><label>NARRATIVE</label><textarea id="i-narrative" rows="5" placeholder="Describe the incident in detail. Include officer actions, subject descriptions, evidence collected, and any additional units requested..."></textarea></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>DISPOSITION</label><select id="i-dispo" style="width:200px"><option>Arrest Made</option><option>Report Only</option><option>Gone on Arrival</option><option>Referred to DA</option><option>Civil Matter</option><option>No Crime Occurred</option><option>Pending Investigation</option></select></div>
+    </div>`;
+}
+
+function submitIncident(){
+  const type    = document.getElementById('i-type').value;
+  const loc     = document.getElementById('i-loc').value || rand(STREETS);
+  const subject = document.getElementById('i-subject').value || 'UNKNOWN';
+  const dispo   = document.getElementById('i-dispo').value;
+  incidents.push({ id:'CCSO'+padZ(randInt(1,9999),4)+'-'+new Date().getFullYear(), type, loc, subject, dispo, date: fmtNow(), officer:'R. MALLORY #2247' });
+  renderIncidents();
+  closeModal();
+  showToast('Incident report submitted — Case #'+incidents[incidents.length-1].id);
+  callsThisShift++;
+  document.getElementById('calls-count').textContent = callsThisShift;
+}
+
+function renderIncidents(){
+  const list = document.getElementById('incident-list');
+  if(!incidents.length){
+    list.innerHTML = `<div class="no-result">NO INCIDENT REPORTS THIS SESSION</div>`;
+    return;
+  }
+  list.innerHTML = incidents.map(inc=>`
+    <div class="queue-item">
+      <div class="qi-main">
+        <div class="qi-subject">${inc.type}</div>
+        <div class="qi-detail">${inc.loc}</div>
+        <div class="qi-detail" style="margin-top:3px;">SUBJECT: ${inc.subject} &nbsp;|&nbsp; DISPO: ${inc.dispo}</div>
+      </div>
+      <div class="qi-meta">
+        <span class="tag i">FILED</span><br>
+        ${inc.id}<br>
+        ${inc.date}
+      </div>
+    </div>`).join('');
+}
+renderIncidents();
+
+/* ─── GENERIC MODAL ─────────────────────────────────────── */
+function openModal(title, bodyHTML, buttons, danger=false){
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHTML;
+  document.getElementById('modal-box').className = 'modal'+(danger?' danger-border':'');
+  const foot = document.getElementById('modal-foot');
+  foot.innerHTML = buttons.map(b=>`<button class="mdt-btn ${b.cls}" onclick="${b.fn}">${b.label}</button>`).join('');
+  document.getElementById('modal-backdrop').classList.add('visible');
+}
+function closeModal(){
+  document.getElementById('modal-backdrop').classList.remove('visible');
+}
+
+// Close modal on backdrop click
+document.getElementById('modal-backdrop').addEventListener('click', function(e){
+  if(e.target === this) closeModal();
+});
+
+// Enter key on query inputs
+['inp-last','inp-first','inp-dob','inp-dl'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('keydown', e=>{ if(e.key==='Enter') runQuery(); });
+});
+
+/* ─── MY STATUS ─────────────────────────────────────────── */
+let panicActive = false;
+
+function setMyStatus(code, label, btnEl){
+  // If panic is active, cancel it first
+  if(panicActive) cancelPanic();
+
+  // Reset all status button styles
+  document.querySelectorAll('.status-btn').forEach(b=>{
+    b.style.border = '1px solid var(--border-lit)';
+    b.style.background = 'transparent';
+    b.style.color = 'var(--text-sec)';
+  });
+
+  // Highlight selected
+  const colors = { '10-8': 'var(--green)', '10-6': 'var(--yellow)', '10-7': '#666', '10-97': 'var(--orange)' };
+  const col = colors[code] || 'var(--accent)';
+  btnEl.style.border = `1px solid ${col}`;
+  btnEl.style.background = `rgba(255,255,255,.06)`;
+  btnEl.style.color = col;
+
+  // Update badge in unit list
+  const badge = document.getElementById('my-unit-stat-badge');
+  badge.textContent = code;
+  badge.style.color = col;
+  badge.style.background = `rgba(255,255,255,.05)`;
+
+  // Update status label in nav
+  document.getElementById('my-status-label').textContent = `${code} ${label}`;
+
+  showToast(`Status updated — ${code} ${label}`);
+}
+
+function triggerPanic(){
+  if(panicActive){ cancelPanic(); return; }
+  panicActive = true;
+  document.body.classList.add('panic-mode');
+
+  // Update unit badge
+  const badge = document.getElementById('my-unit-stat-badge');
+  badge.textContent = '!! PANIC';
+  badge.style.color = '#fff';
+  badge.style.background = 'var(--red)';
+
+  document.getElementById('my-status-label').textContent = '!! PANIC ALARM ACTIVE';
+  document.getElementById('panic-btn').textContent = '⚠ CANCEL PANIC';
+
+  // Show big panic toast
+  const t = document.getElementById('toast');
+  t.textContent = '⚠ PANIC ALARM TRANSMITTED — CCSO-247 — DISPATCH NOTIFIED';
+  t.className = 'show err';
+  // keep it up while panic is active
+
+  // Reset all status buttons
+  document.querySelectorAll('.status-btn').forEach(b=>{
+    b.style.border = '1px solid var(--border-lit)';
+    b.style.background = 'transparent';
+    b.style.color = 'var(--text-sec)';
+  });
+}
+
+function cancelPanic(){
+  panicActive = false;
+  document.body.classList.remove('panic-mode');
+
+  const badge = document.getElementById('my-unit-stat-badge');
+  badge.textContent = '10-8';
+  badge.style.color = 'var(--green)';
+  badge.style.background = 'rgba(29,185,84,.15)';
+
+  document.getElementById('my-status-label').textContent = '10-8 AVAILABLE';
+  document.getElementById('panic-btn').textContent = '⚠ PANIC ALARM';
+
+  // Re-highlight 10-8 button
+  const avail = document.querySelector('.status-btn[data-code="10-8"]');
+  if(avail){
+    avail.style.border = '1px solid var(--green)';
+    avail.style.background = 'rgba(29,185,84,.15)';
+    avail.style.color = 'var(--green)';
+  }
+
+  const t = document.getElementById('toast');
+  t.className = '';
+  showToast('Panic alarm cancelled — status reset to 10-8');
+}
+
+/* ─── PAGE UP KEY → PANIC ───────────────────────────────── */
+document.addEventListener('keydown', function(e){
+  if(e.key === 'PageUp'){
+    e.preventDefault();
+    triggerPanic();
+  }
+});
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CJIS MDT — Cook County Sheriff's Office</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Roboto+Condensed:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-main:    #0a0c0f;
+    --bg-panel:   #0d1117;
+    --bg-card:    #111820;
+    --bg-hover:   #1a2435;
+    --border:     #1e2d42;
+    --border-lit: #2a4060;
+    --accent:     #1a6fb5;
+    --accent-glow:#0d5a9e;
+    --green:      #1db954;
+    --green-dim:  #0f6b30;
+    --yellow:     #e6b800;
+    --red:        #cc2233;
+    --red-dim:    #7a0f1a;
+    --orange:     #d4721a;
+    --text-pri:   #c8d8e8;
+    --text-sec:   #7a9ab8;
+    --text-dim:   #445566;
+    --text-head:  #e8f0f8;
+    --mono:       'Share Tech Mono', monospace;
+    --sans:       'Roboto Condensed', sans-serif;
+    --body:       'Roboto', sans-serif;
+  }
+
+  html, body {
+    background: var(--bg-main);
+    color: var(--text-pri);
+    font-family: var(--body);
+    font-size: 13px;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* ── CHROME BAR ─────────────────────────────── */
+  #chrome {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #060a0e;
+    border-bottom: 2px solid var(--accent);
+    padding: 0 16px;
+    height: 38px;
+    user-select: none;
+  }
+  #chrome .logo {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  #chrome .logo span { color: var(--text-sec); font-weight: 300; margin-left: 6px; font-size: 11px; letter-spacing: 2px; }
+  #clock-block {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--green);
+    text-align: right;
+    line-height: 1.3;
+  }
+  #clock-block .date-str { font-size: 10px; color: var(--text-sec); }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; color: var(--text-sec);
+    padding: 3px 10px; border: 1px solid var(--border-lit); border-radius: 2px;
+  }
+  .status-pill .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: blink 2.4s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── LAYOUT ─────────────────────────────────── */
+  #shell {
+    display: grid;
+    grid-template-columns: 200px 1fr 280px;
+    grid-template-rows: calc(100vh - 38px);
+    gap: 0;
+  }
+
+  /* ── NAV SIDEBAR ─────────────────────────────── */
+  #nav {
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .nav-section-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    padding: 14px 14px 6px;
+    text-transform: uppercase;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 14px;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-sec);
+    border-left: 3px solid transparent;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .nav-item:hover { background: var(--bg-hover); color: var(--text-pri); }
+  .nav-item.active {
+    background: rgba(26,111,181,.12);
+    color: var(--accent);
+    border-left-color: var(--accent);
+    font-weight: 700;
+  }
+  .nav-item .ni { font-size: 14px; width: 18px; text-align: center; }
+  .nav-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+  #unit-badge {
+    margin-top: auto;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.8;
+  }
+  #unit-badge .ub-unit { color: var(--yellow); font-size: 13px; }
+
+  /* ── MAIN CONTENT ────────────────────────────── */
+  #main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-main);
+  }
+
+  /* tab bar */
+  #tab-bar {
+    display: flex;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0 12px;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .tab {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    padding: 9px 16px 8px;
+    cursor: pointer;
+    color: var(--text-dim);
+    border-bottom: 2px solid transparent;
+    text-transform: uppercase;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--text-sec); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* pane visibility */
+  .pane { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+  .pane.visible { display: flex; }
+
+  /* ── QUERY PANE ──────────────────────────────── */
+  #pane-query {
+    padding: 16px;
+    overflow-y: auto;
+  }
+
+  .section-head {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+
+  .search-row {
+    display: flex; gap: 8px; align-items: flex-end; margin-bottom: 20px;
+  }
+  .field-group { display: flex; flex-direction: column; gap: 4px; }
+  .field-group label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .mdt-input {
+    background: var(--bg-card);
+    border: 1px solid var(--border-lit);
+    color: var(--text-head);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border .15s;
+    border-radius: 2px;
+  }
+  .mdt-input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-glow); }
+  .mdt-input::placeholder { color: var(--text-dim); }
+  .mdt-input.wide { width: 240px; }
+  .mdt-input.med  { width: 140px; }
+  .mdt-input.sm   { width: 90px; }
+
+  .mdt-btn {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 8px 18px;
+    border: 1px solid var(--accent);
+    background: rgba(26,111,181,.18);
+    color: var(--accent);
+    cursor: pointer;
+    transition: all .15s;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .mdt-btn:hover { background: rgba(26,111,181,.35); color: #fff; }
+  .mdt-btn.danger { border-color: var(--red); background: rgba(204,34,51,.15); color: var(--red); }
+  .mdt-btn.danger:hover { background: rgba(204,34,51,.3); }
+  .mdt-btn.success { border-color: var(--green); background: rgba(29,185,84,.12); color: var(--green); }
+  .mdt-btn.success:hover { background: rgba(29,185,84,.28); }
+  .mdt-btn.warn { border-color: var(--yellow); background: rgba(230,184,0,.1); color: var(--yellow); }
+  .mdt-btn.warn:hover { background: rgba(230,184,0,.25); }
+  .mdt-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  /* result card */
+  #result-area { display: none; }
+  #result-area.visible { display: block; }
+
+  .result-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-lit);
+    border-top: 3px solid var(--accent);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    border-radius: 2px;
+  }
+  .result-card.warrant-active { border-top-color: var(--red); }
+  .result-card.clean { border-top-color: var(--green); }
+
+  .rc-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .rc-name {
+    font-family: var(--sans);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-head);
+    letter-spacing: .5px;
+  }
+  .rc-dob { font-family: var(--mono); font-size: 10px; color: var(--text-sec); margin-top: 2px; }
+
+  .badge-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    text-transform: uppercase;
+  }
+  .badge.warrant  { background: var(--red-dim); color: #ff6677; border: 1px solid var(--red); }
+  .badge.caution  { background: rgba(212,114,26,.15); color: var(--orange); border: 1px solid var(--orange); }
+  .badge.clear    { background: var(--green-dim); color: #55ee88; border: 1px solid var(--green); }
+  .badge.violent  { background: rgba(180,20,20,.25); color: #ff5566; border: 1px solid #aa1122; }
+  .badge.sex-off  { background: rgba(100,0,100,.3); color: #dd88ff; border: 1px solid #8833aa; }
+
+  .rc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .rc-field label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    display: block;
+    letter-spacing: 1.5px;
+    margin-bottom: 3px;
+    text-transform: uppercase;
+  }
+  .rc-field .val {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-pri);
+  }
+
+  /* Prior record table */
+  .rec-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+  .rec-table th {
+    background: #080d12;
+    color: var(--text-dim);
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+  .rec-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid rgba(30,45,66,.6);
+    color: var(--text-pri);
+    vertical-align: top;
+  }
+  .rec-table tr:hover td { background: var(--bg-hover); }
+  .rec-table td.charge { color: #aac8e0; }
+  .rec-table td.dispo { }
+  .dispo-guilty  { color: var(--red); }
+  .dispo-nolle   { color: var(--yellow); }
+  .dispo-acquit  { color: var(--green); }
+
+  /* Warrant box */
+  .warrant-box {
+    border: 1px solid var(--red);
+    background: rgba(204,34,51,.08);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    border-radius: 2px;
+  }
+  .warrant-box .wb-head {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--red);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .wb-head::before { content:'⚠'; font-size:12px; }
+  .warrant-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 80px;
+    gap: 8px;
+    margin-bottom: 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-sec);
+    border-bottom: 1px solid rgba(204,34,51,.2);
+    padding-bottom: 5px;
+  }
+  .warrant-row:last-child { border: none; margin: 0; padding: 0; }
+  .warrant-row .wtype { color: #ff7788; }
+
+  /* loading spinner */
+  #loading-overlay {
+    display: none;
+    padding: 30px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-sec);
+  }
+  #loading-overlay.visible { display: block; }
+  .spinner {
+    display: inline-block;
+    width: 24px; height: 24px;
+    border: 2px solid var(--border-lit);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin-bottom: 10px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── WARRANTS / CITATIONS PANE ───────────────── */
+  #pane-warrants, #pane-cites, #pane-incidents {
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .action-bar {
+    display: flex; gap: 8px; align-items: flex-end;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+
+  .queue-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .queue-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    border-radius: 2px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 10px;
+    cursor: default;
+    transition: border-color .15s;
+  }
+  .queue-item:hover { border-color: var(--border-lit); }
+  .queue-item .qi-main { flex: 1; }
+  .qi-subject { font-family: var(--sans); font-size: 14px; font-weight: 700; color: var(--text-head); }
+  .qi-detail  { font-family: var(--mono); font-size: 10px; color: var(--text-sec); margin-top: 2px; }
+  .qi-meta    { font-family: var(--mono); font-size: 10px; color: var(--text-dim); text-align: right; line-height: 1.7; }
+  .qi-type    { font-family: var(--mono); font-size: 9px; }
+
+  /* tag pill */
+  .tag {
+    display: inline-block;
+    font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
+    padding: 2px 7px; border-radius: 2px;
+    text-transform: uppercase; font-weight: 700;
+  }
+  .tag.w  { background: rgba(204,34,51,.2);  color: var(--red);    border: 1px solid var(--red); }
+  .tag.c  { background: rgba(230,184,0,.12); color: var(--yellow); border: 1px solid var(--yellow); }
+  .tag.i  { background: rgba(26,111,181,.15);color: #5aadff;       border: 1px solid #2a7fcc; }
+  .tag.x  { background: rgba(29,185,84,.12); color: var(--green);  border: 1px solid var(--green); }
+
+  /* ── CAD / DISPATCH SIDEBAR ───────────────────── */
+  #sidebar {
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .sb-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sb-head-title {
+    font-family: var(--mono); font-size: 9px; color: var(--text-dim);
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+  .sb-calls {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .call-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--text-dim);
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all .15s;
+    border-radius: 1px;
+  }
+  .call-card:hover { border-color: var(--border-lit); border-left-color: var(--accent); }
+  .call-card.priority-1 { border-left-color: var(--red); }
+  .call-card.priority-2 { border-left-color: var(--orange); }
+  .call-card.priority-3 { border-left-color: var(--yellow); }
+  .call-card.assigned   { border-left-color: var(--green); }
+  .cc-type {
+    font-family: var(--sans); font-size: 12px; font-weight: 700;
+    color: var(--text-head); margin-bottom: 3px;
+  }
+  .cc-addr { font-family: var(--mono); font-size: 10px; color: var(--text-sec); }
+  .cc-meta { display: flex; justify-content: space-between; margin-top: 5px; }
+  .cc-id   { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
+  .cc-time { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
+  .cc-pri  { font-family: var(--mono); font-size: 9px; }
+  .pri-1 { color: var(--red); }
+  .pri-2 { color: var(--orange); }
+  .pri-3 { color: var(--yellow); }
+  .pri-a { color: var(--green); }
+
+  /* unit status panel */
+  .sb-units {
+    border-top: 1px solid var(--border);
+    padding: 8px;
+    flex-shrink: 0;
+  }
+  .unit-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 4px;
+    font-family: var(--mono); font-size: 10px;
+    border-bottom: 1px solid rgba(30,45,66,.4);
+  }
+  .unit-row:last-child { border: none; }
+  .u-id   { color: var(--yellow); font-size: 11px; font-weight: 700; width: 50px; }
+  .u-name { color: var(--text-sec); flex: 1; font-size: 10px; }
+  .u-stat {
+    font-size: 9px; padding: 2px 6px; border-radius: 2px; font-weight: 700; letter-spacing: 1px;
+  }
+  .u-10-8  { background: rgba(29,185,84,.15);  color: var(--green); }
+  .u-10-7  { background: rgba(100,100,100,.15); color: #666; }
+  .u-10-6  { background: rgba(26,111,181,.15);  color: #5aadff; }
+  .u-10-97 { background: rgba(212,114,26,.15);  color: var(--orange); }
+
+  /* modal overlay */
+  #modal-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.7);
+    z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  #modal-backdrop.visible { display: flex; }
+  .modal {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-lit);
+    border-top: 3px solid var(--accent);
+    width: 520px;
+    max-width: 95vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-radius: 2px;
+  }
+  .modal.danger-border { border-top-color: var(--red); }
+  .modal-head {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-title {
+    font-family: var(--sans); font-size: 14px; font-weight: 700;
+    color: var(--text-head); letter-spacing: .5px;
+  }
+  .modal-close {
+    font-family: var(--mono); font-size: 16px; color: var(--text-dim);
+    cursor: pointer; padding: 0 4px; line-height: 1;
+  }
+  .modal-close:hover { color: var(--text-pri); }
+  .modal-body { padding: 16px 18px; }
+  .modal-foot {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 8px;
+  }
+
+  .form-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .form-col { display: flex; flex-direction: column; gap: 4px; }
+  .form-col label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
+  .form-col select {
+    background: var(--bg-card);
+    border: 1px solid var(--border-lit);
+    color: var(--text-pri);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 10px;
+    outline: none;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .form-col select:focus { border-color: var(--accent); }
+  .form-col textarea {
+    background: var(--bg-card);
+    border: 1px solid var(--border-lit);
+    color: var(--text-pri);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 10px;
+    outline: none;
+    resize: vertical;
+    min-height: 70px;
+    border-radius: 2px;
+    width: 100%;
+  }
+  .form-col textarea:focus { border-color: var(--accent); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg-main); }
+  ::-webkit-scrollbar-thumb { background: var(--border-lit); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  /* panic mode */
+  body.panic-mode #chrome { border-bottom-color: var(--red) !important; animation: panic-flash .5s ease-in-out infinite alternate; }
+  @keyframes panic-flash { from { background: #060a0e; } to { background: #2a0008; } }
+  body.panic-mode #panic-btn { background: var(--red) !important; color: #fff !important; animation: panic-pulse .6s ease-in-out infinite alternate; }
+  @keyframes panic-pulse { from { box-shadow: 0 0 6px var(--red); } to { box-shadow: 0 0 20px var(--red), 0 0 40px rgba(204,34,51,.4); } }
+  body.panic-mode .status-pill .dot { background: var(--red) !important; box-shadow: 0 0 8px var(--red) !important; }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 18px; right: 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-lit);
+    border-left: 3px solid var(--green);
+    padding: 10px 16px;
+    font-family: var(--mono); font-size: 11px; color: var(--text-pri);
+    border-radius: 2px;
+    z-index: 200;
+    opacity: 0; transform: translateY(10px);
+    transition: all .25s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.err  { border-left-color: var(--red); }
+
+  /* no-result */
+  .no-result {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 20px;
+    text-align: center;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--yellow);
+    border-radius: 2px;
+  }
+
+  .crime-select-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+
+  /* system banner */
+  #sys-banner {
+    background: rgba(26,111,181,.1);
+    border-bottom: 1px solid rgba(26,111,181,.25);
+    padding: 4px 14px;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--text-sec);
+    display: flex; gap: 20px; flex-shrink: 0;
+    letter-spacing: .3px;
+  }
+  #sys-banner span { color: var(--text-dim); }
+  #sys-banner b { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- TOP CHROME -->
+<div id="chrome">
+  <div class="logo">COOK COUNTY SO <span>// CJIS MDT v4.11</span></div>
+  <div class="status-pill"><div class="dot"></div>CONNECTED — DISTRICT 7 SECTOR B</div>
+  <div id="clock-block">
+    <div id="clock-time">00:00:00</div>
+    <div class="date-str" id="clock-date">MON JAN 01 2025</div>
+  </div>
+</div>
+
+<!-- SYSTEM BANNER -->
+<div id="sys-banner">
+  <span>OFFICER:</span> <b>R. MALLORY #2247</b>
+  &nbsp;|&nbsp;
+  <span>UNIT:</span> <b>CCSO-247</b>
+  &nbsp;|&nbsp;
+  <span>SHIFT:</span> <b>EVENING 1600–2400</b>
+  &nbsp;|&nbsp;
+  <span>SECTOR:</span> <b>DISTRICT 7 / ZONE B</b>
+  &nbsp;|&nbsp;
+  <span>TERMINAL:</span> <b>MDT-082</b>
+</div>
+
+<!-- MAIN SHELL -->
+<div id="shell">
+
+  <!-- ── LEFT NAV ── -->
+  <nav id="nav">
+    <div class="nav-section-label">Query</div>
+    <div class="nav-item active" data-pane="pane-query" onclick="switchPane(this)">
+      <span class="ni">🔍</span> Person / Vehicle
+    </div>
+    <div class="nav-item" data-pane="pane-incidents" onclick="switchPane(this)">
+      <span class="ni">📋</span> Incident Reports
+    </div>
+    <hr class="nav-divider">
+    <div class="nav-section-label">Records</div>
+    <div class="nav-item" data-pane="pane-warrants" onclick="switchPane(this)">
+      <span class="ni">⚖</span> Warrants
+    </div>
+    <div class="nav-item" data-pane="pane-cites" onclick="switchPane(this)">
+      <span class="ni">🗒</span> Citations / Tickets
+    </div>
+    <hr class="nav-divider">
+    <div class="nav-section-label">Actions</div>
+    <div class="nav-item" onclick="openWarrantModal()">
+      <span class="ni">➕</span> Issue Warrant
+    </div>
+    <div class="nav-item" onclick="openCiteModal()">
+      <span class="ni">📝</span> Write Citation
+    </div>
+    <div class="nav-item" onclick="openIncidentModal()">
+      <span class="ni">📁</span> New Incident
+    </div>
+    <div id="unit-badge">
+      <div class="ub-unit">CCSO-247</div>
+      STATUS: <span id="my-status-label">10-8 AVAILABLE</span><br>
+      ZONE: DISTRICT 7-B<br>
+      CALLS THIS SHIFT: <span id="calls-count">0</span>
+    </div>
+  </nav>
+
+  <!-- ── MAIN CONTENT ── -->
+  <div id="main">
+    <div id="tab-bar">
+      <div class="tab active" data-tab="0" onclick="switchTab(this,0)">PERSON QUERY</div>
+      <div class="tab" data-tab="1" onclick="switchTab(this,1)">VEHICLE QUERY</div>
+      <div class="tab" data-tab="2" onclick="switchTab(this,2)">GANG / ORG</div>
+    </div>
+
+    <!-- PERSON QUERY PANE -->
+    <div class="pane visible" id="pane-query">
+      <div style="padding:16px 16px 0; flex-shrink:0;">
+        <div class="section-head">NCIC / STATE QUERY — PERSON</div>
+        <div id="tab-content-0">
+          <div class="search-row">
+            <div class="field-group">
+              <label>LAST NAME</label>
+              <input class="mdt-input med" id="inp-last" placeholder="SMITH" type="text">
+            </div>
+            <div class="field-group">
+              <label>FIRST NAME</label>
+              <input class="mdt-input med" id="inp-first" placeholder="JOHN" type="text">
+            </div>
+            <div class="field-group">
+              <label>DOB (MM/DD/YYYY)</label>
+              <input class="mdt-input med" id="inp-dob" placeholder="01/01/1990" type="text">
+            </div>
+            <div class="field-group">
+              <label>DL / SSN</label>
+              <input class="mdt-input sm" id="inp-dl" placeholder="DL#" type="text">
+            </div>
+            <button class="mdt-btn" onclick="runQuery()" style="margin-bottom:1px;">▶ QUERY NCIC</button>
+            <button class="mdt-btn" onclick="clearResults()" style="margin-bottom:1px; background:transparent; border-color:var(--border-lit); color:var(--text-sec)">CLEAR</button>
+          </div>
+        </div>
+        <div id="tab-content-1" style="display:none;">
+          <div class="search-row">
+            <div class="field-group">
+              <label>LICENSE PLATE</label>
+              <input class="mdt-input sm" id="inp-plate" placeholder="ABC-1234" type="text">
+            </div>
+            <div class="field-group">
+              <label>STATE</label>
+              <input class="mdt-input sm" id="inp-state" placeholder="PA" type="text" style="width:60px">
+            </div>
+            <div class="field-group">
+              <label>VIN</label>
+              <input class="mdt-input wide" id="inp-vin" placeholder="1HGCM82633A004352" type="text">
+            </div>
+            <button class="mdt-btn" onclick="runVehicleQuery()">▶ QUERY DMV</button>
+          </div>
+        </div>
+        <div id="tab-content-2" style="display:none;">
+          <div class="search-row">
+            <div class="field-group">
+              <label>ORGANIZATION / ALIAS</label>
+              <input class="mdt-input wide" id="inp-gang" placeholder="Enter known alias or org name" type="text">
+            </div>
+            <button class="mdt-btn" onclick="showToast('No active intelligence entries for that organization.','err')">▶ QUERY GANGS</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div id="loading-overlay">
+        <div class="spinner"></div><br>
+        QUERYING NCIC DATABASE…<br>
+        <span style="font-size:10px;color:var(--text-dim)">CONNECTING TO STATE REPOSITORY…</span>
+      </div>
+
+      <!-- Result -->
+      <div id="result-area" style="padding:0 16px 16px; overflow-y:auto; flex:1;">
+      </div>
+    </div>
+
+    <!-- INCIDENTS PANE -->
+    <div class="pane" id="pane-incidents">
+      <div style="padding:16px 16px 0; flex-shrink:0;">
+        <div class="section-head">INCIDENT REPORTS — SHIFT LOG</div>
+        <div class="action-bar">
+          <button class="mdt-btn" onclick="openIncidentModal()">+ NEW INCIDENT</button>
+        </div>
+      </div>
+      <div style="padding:0 16px 16px; overflow-y:auto; flex:1;">
+        <div class="queue-list" id="incident-list">
+          <!-- populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- WARRANTS PANE -->
+    <div class="pane" id="pane-warrants">
+      <div style="padding:16px 16px 0; flex-shrink:0;">
+        <div class="section-head">ACTIVE WARRANTS — DISTRICT 7</div>
+        <div class="action-bar">
+          <button class="mdt-btn danger" onclick="openWarrantModal()">+ ISSUE WARRANT</button>
+        </div>
+      </div>
+      <div style="padding:0 16px 16px; overflow-y:auto; flex:1;">
+        <div class="queue-list" id="warrant-list">
+        </div>
+      </div>
+    </div>
+
+    <!-- CITATIONS PANE -->
+    <div class="pane" id="pane-cites">
+      <div style="padding:16px 16px 0; flex-shrink:0;">
+        <div class="section-head">CITATIONS / TICKETS — ISSUED THIS SHIFT</div>
+        <div class="action-bar">
+          <button class="mdt-btn warn" onclick="openCiteModal()">+ WRITE CITATION</button>
+        </div>
+      </div>
+      <div style="padding:0 16px 16px; overflow-y:auto; flex:1;">
+        <div class="queue-list" id="cite-list">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CAD SIDEBAR ── -->
+  <div id="sidebar">
+    <div class="sb-head">
+      <div class="sb-head-title">CAD DISPATCH QUEUE</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--green);" id="call-count-badge">● LIVE</div>
+    </div>
+    <div class="sb-calls" id="cad-queue">
+      <!-- populated by JS -->
+    </div>
+    <div class="sb-units">
+      <div class="nav-section-label" style="padding:6px 4px 4px;">UNIT STATUS</div>
+      <div class="unit-row"><span class="u-id">247</span><span class="u-name">MALLORY</span><span class="u-stat" id="my-unit-stat-badge" style="background:rgba(29,185,84,.15);color:var(--green)">10-8</span></div>
+      <div class="unit-row"><span class="u-id">219</span><span class="u-name">CHEN</span><span class="u-stat u-10-97">10-97</span></div>
+      <div class="unit-row"><span class="u-id">231</span><span class="u-name">HARRIS</span><span class="u-stat u-10-8">10-8</span></div>
+      <div class="unit-row"><span class="u-id">208</span><span class="u-name">KOVALSKI</span><span class="u-stat u-10-6">10-6</span></div>
+      <div class="unit-row"><span class="u-id">254</span><span class="u-name">REYES</span><span class="u-stat u-10-8">10-8</span></div>
+      <div class="unit-row"><span class="u-id">262</span><span class="u-name">NGUYEN</span><span class="u-stat u-10-7">10-7</span></div>
+      <!-- MY STATUS CONTROLS -->
+      <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:8px;">
+        <div class="nav-section-label" style="padding:0 4px 6px;">MY STATUS</div>
+        <div style="display:flex;flex-direction:column;gap:5px;padding:0 2px;">
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button class="status-btn active-status" data-code="10-8" onclick="setMyStatus('10-8','AVAILABLE',this)" style="flex:1;font-family:var(--mono);font-size:9px;padding:5px 4px;border:1px solid var(--green);background:rgba(29,185,84,.15);color:var(--green);cursor:pointer;border-radius:2px;letter-spacing:.5px;font-weight:700;">10-8 AVAIL</button>
+            <button class="status-btn" data-code="10-6" onclick="setMyStatus('10-6','BUSY',this)" style="flex:1;font-family:var(--mono);font-size:9px;padding:5px 4px;border:1px solid var(--border-lit);background:transparent;color:var(--text-sec);cursor:pointer;border-radius:2px;letter-spacing:.5px;font-weight:700;">10-6 BUSY</button>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button class="status-btn" data-code="10-7" onclick="setMyStatus('10-7','OFF DUTY',this)" style="flex:1;font-family:var(--mono);font-size:9px;padding:5px 4px;border:1px solid var(--border-lit);background:transparent;color:var(--text-sec);cursor:pointer;border-radius:2px;letter-spacing:.5px;font-weight:700;">10-7 OFF</button>
+            <button class="status-btn" data-code="10-97" onclick="setMyStatus('10-97','ON SCENE',this)" style="flex:1;font-family:var(--mono);font-size:9px;padding:5px 4px;border:1px solid var(--border-lit);background:transparent;color:var(--text-sec);cursor:pointer;border-radius:2px;letter-spacing:.5px;font-weight:700;">10-97 SCENE</button>
+          </div>
+          <button id="panic-btn" onclick="triggerPanic()" style="width:100%;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;padding:8px 4px;border:2px solid var(--red);background:rgba(204,34,51,.15);color:var(--red);cursor:pointer;border-radius:2px;margin-top:2px;transition:all .15s;">⚠ PANIC ALARM</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL BACKDROP -->
+<div id="modal-backdrop">
+  <div class="modal" id="modal-box">
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title">Modal</div>
+      <div class="modal-close" onclick="closeModal()">✕</div>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot" id="modal-foot"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+/* ─── DATA ─────────────────────────────────────────────── */
+
+const CRIMES = [
+  // Violent
+  "18 PA C.S. § 2502(a) — Murder in the First Degree",
+  "18 PA C.S. § 2502(b) — Murder in the Second Degree",
+  "18 PA C.S. § 2502(c) — Murder in the Third Degree",
+  "18 PA C.S. § 2503 — Voluntary Manslaughter",
+  "18 PA C.S. § 2504 — Involuntary Manslaughter",
+  "18 PA C.S. § 2701 — Simple Assault",
+  "18 PA C.S. § 2702 — Aggravated Assault",
+  "18 PA C.S. § 2706 — Terroristic Threats",
+  "18 PA C.S. § 2709 — Harassment",
+  "18 PA C.S. § 2709.1 — Stalking",
+  "18 PA C.S. § 2711 — Probable Cause — Domestic",
+  "18 PA C.S. § 2718 — Strangulation",
+  "18 PA C.S. § 2901 — Kidnapping",
+  "18 PA C.S. § 2902 — Unlawful Restraint",
+  "18 PA C.S. § 2903 — False Imprisonment",
+  "18 PA C.S. § 3121 — Rape",
+  "18 PA C.S. § 3122.1 — Statutory Sexual Assault",
+  "18 PA C.S. § 3123 — Involuntary Deviate Sexual Intercourse",
+  "18 PA C.S. § 3124.1 — Sexual Assault",
+  "18 PA C.S. § 3126 — Indecent Assault",
+  "18 PA C.S. § 3127 — Indecent Exposure",
+  "18 PA C.S. § 3131 — Unlawful Dissemination of Intimate Image",
+  // Property
+  "18 PA C.S. § 3301 — Arson",
+  "18 PA C.S. § 3304 — Criminal Mischief",
+  "18 PA C.S. § 3311 — Ecoterrorism",
+  "18 PA C.S. § 3501 — Robbery",
+  "18 PA C.S. § 3502 — Burglary",
+  "18 PA C.S. § 3503 — Criminal Trespass",
+  "18 PA C.S. § 3701 — Robbery",
+  "18 PA C.S. § 3702 — Robbery of Motor Vehicle",
+  "18 PA C.S. § 3921 — Theft by Unlawful Taking",
+  "18 PA C.S. § 3922 — Theft by Deception",
+  "18 PA C.S. § 3925 — Receiving Stolen Property",
+  "18 PA C.S. § 3928 — Unauthorized Use of Automobile",
+  "18 PA C.S. § 3929 — Retail Theft",
+  "18 PA C.S. § 3932 — Theft of Trade Secrets",
+  "18 PA C.S. § 3934 — Theft from Motor Vehicle",
+  // Drugs
+  "35 P.S. § 780-113(a)(30) — PWID Schedule I/II Controlled Substance",
+  "35 P.S. § 780-113(a)(16) — Possession of Controlled Substance",
+  "35 P.S. § 780-113(a)(12) — Acquisition by Fraud",
+  "35 P.S. § 780-113(a)(32) — Delivery of Controlled Substance to Minor",
+  "35 P.S. § 780-113(a)(19) — Manufacture / Delivery — Schedule II",
+  "18 PA C.S. § 7508 — Drug Trafficking Sentencing & Penalties",
+  "35 P.S. § 780-113(a)(31) — PWID — Marijuana",
+  // Weapons
+  "18 PA C.S. § 6105 — Persons Not to Possess Firearms",
+  "18 PA C.S. § 6106 — Firearms Not to Be Carried w/o License",
+  "18 PA C.S. § 6108 — Carrying Firearms on Public Streets",
+  "18 PA C.S. § 6110.1 — Possession of Firearm by Minor",
+  "18 PA C.S. § 6111 — Sale or Transfer of Firearms",
+  "18 PA C.S. § 6301 — Corruption of Minors",
+  "18 PA C.S. § 908 — Prohibited Offensive Weapons",
+  "18 PA C.S. § 912 — Possession of Weapon on School Property",
+  // DUI / Traffic
+  "75 PA C.S. § 3802(a)(1) — DUI — General Impairment",
+  "75 PA C.S. § 3802(b) — DUI — High BAC (.10-.159)",
+  "75 PA C.S. § 3802(c) — DUI — Highest BAC (.16+)",
+  "75 PA C.S. § 3802(d) — DUI — Controlled Substance",
+  "75 PA C.S. § 3732 — Aggravated Assault by Vehicle",
+  "75 PA C.S. § 3735 — Homicide by Vehicle While DUI",
+  "75 PA C.S. § 3742 — Accidents Involving Death or Personal Injury",
+  "75 PA C.S. § 3301 — Driving on Right Side of Roadway",
+  "75 PA C.S. § 3361 — Driving Vehicle at Safe Speed",
+  "75 PA C.S. § 3362 — Maximum Speed Limits",
+  "75 PA C.S. § 3714 — Careless Driving",
+  "75 PA C.S. § 3736 — Reckless Driving",
+  "75 PA C.S. § 3341 — Duty to Stop for Traffic-Control Signals",
+  "75 PA C.S. § 4303 — Required Lamps",
+  "75 PA C.S. § 1786 — Required Financial Responsibility",
+  "75 PA C.S. § 1501 — Driving While Operating Privilege is Suspended",
+  "75 PA C.S. § 1543(b) — DUS — DUI Related",
+  "75 PA C.S. § 3345 — Failure to Stop for School Bus",
+  // Fraud / Financial
+  "18 PA C.S. § 4101 — Forgery",
+  "18 PA C.S. § 4106 — Access Device Fraud",
+  "18 PA C.S. § 4107 — Deceptive Business Practices",
+  "18 PA C.S. § 4111 — Stealing or Receiving Stolen Credit Cards",
+  "18 PA C.S. § 4120 — Identity Theft",
+  "18 PA C.S. § 4130 — False Identification to Law Enforcement",
+  "18 PA C.S. § 4904 — Unsworn Falsification to Authorities",
+  "18 PA C.S. § 4906 — False Reports to Law Enforcement",
+  "18 PA C.S. § 4114 — Securing Execution of Documents by Deception",
+  // Public Order
+  "18 PA C.S. § 5101 — Obstruction of Justice",
+  "18 PA C.S. § 5102 — Perjury",
+  "18 PA C.S. § 5104 — Resisting Arrest or Other Law Enforcement",
+  "18 PA C.S. § 5105 — Hindering Apprehension or Prosecution",
+  "18 PA C.S. § 5106 — Failure to Report Injuries",
+  "18 PA C.S. § 5107 — Aiding Consummation of Crime",
+  "18 PA C.S. § 5108 — Compounding",
+  "18 PA C.S. § 5110 — Escape",
+  "18 PA C.S. § 5121 — Escape",
+  "18 PA C.S. § 5122 — Weapons or Implements for Escape",
+  "18 PA C.S. § 5501 — Riot",
+  "18 PA C.S. § 5502 — Failure of Disorderly Persons to Disperse",
+  "18 PA C.S. § 5503 — Disorderly Conduct",
+  "18 PA C.S. § 5505 — Public Drunkenness",
+  "18 PA C.S. § 5507 — Obstructing Highways",
+  "18 PA C.S. § 5510 — Loitering and Prowling at Night",
+  "18 PA C.S. § 6308 — Purchase, Consumption, or Possession of Liquor — Minor",
+  // Cyber / Other
+  "18 PA C.S. § 7601 — Computer Offenses",
+  "18 PA C.S. § 7603 — Unlawful Use of Computer",
+  "18 PA C.S. § 7611 — Unlawful Duplication",
+  "18 PA C.S. § 7612 — Criminal Invasion of Computer Privacy",
+  "18 PA C.S. § 7614 — Distribution of Computer Virus",
+  "18 PA C.S. § 3930 — Theft of Intellectual Property",
+  "18 PA C.S. § 4952 — Intimidation of Witnesses or Victims",
+  "18 PA C.S. § 4953 — Retaliation Against Witness",
+  "18 PA C.S. § 2705 — Recklessly Endangering Another Person",
+  "18 PA C.S. § 5902 — Prostitution and Related Offenses",
+  "18 PA C.S. § 5903 — Obscene and Other Sexual Materials",
+  "18 PA C.S. § 5904 — Public Exhibition of Films",
+  "18 PA C.S. § 6312 — Sexual Abuse of Children — Production",
+  "18 PA C.S. § 6318 — Unlawful Contact with Minor",
+  "18 PA C.S. § 6320 — Sexual Exploitation of Children",
+  "18 PA C.S. § 2803 — Causing or Risking Catastrophe",
+  "18 PA C.S. § 5511 — Cruelty to Animals",
+  "18 PA C.S. § 4902 — Perjury",
+  "18 PA C.S. § 4910 — Tampering with / Fabricating Physical Evidence",
+];
+
+const WARRANT_TYPES = ["Arrest Warrant", "Bench Warrant", "Search Warrant", "Failure to Appear", "Extradition Warrant", "Civil Warrant"];
+const DISPOSITIONS = ["GUILTY PLEA", "CONVICTED", "NOLLE PROSEQUI", "ACQUITTED", "ARD PROGRAM", "PROBATION", "DISMISSED", "PENDING TRIAL"];
+const DISPO_CLASS = { "GUILTY PLEA":"dispo-guilty","CONVICTED":"dispo-guilty","NOLLE PROSEQUI":"dispo-nolle","ACQUITTED":"dispo-acquit","DISMISSED":"dispo-acquit","ARD PROGRAM":"dispo-nolle","PROBATION":"dispo-nolle","PENDING TRIAL":"dispo-nolle" };
+
+const CALL_TYPES = ["10-33 ALARM", "10-16 DOMESTIC", "415 DISTURBANCE", "10-50 MVA", "211 ROBBERY", "10-52 AMBULANCE NEEDED", "459 BURGLARY", "10-31 CRIME IN PROGRESS", "415F FIGHT", "10-97 ARRIVED SCENE", "594 VANDALISM", "647F DRUNK IN PUBLIC", "10-54 LIVESTOCK ON HWY", "602 TRESPASSING", "148 RESIST ARREST"];
+const STREETS = ["1400 BLK N. HIGHLAND AVE", "700 BLK OAK STREET", "RIDGEMONT BLVD & 5TH ST", "2200 BLK MAPLE DRIVE", "CENTRAL AVE & COMMERCE ST", "900 BLK WESTFIELD RD", "450 BLK PARK PLACE", "DOWNTOWN TRANSIT HUB", "3100 BLK PINE RIDGE PKWY", "FAIRVIEW MALL PARKING LEVEL 2", "HARBOR ST & INDUSTRIAL WAY", "580 BLK LAKEVIEW TERRACE"];
+
+const firstNames = ["JAMES","MARCUS","DEJA","TYRONE","ASHLEY","ROBERTO","KEVIN","SHANNON","DARNELL","BRITTANY","AHMAD","CRYSTAL","WILLIAM","LATASHA","CARLOS","JESSICA","JEROME","HEATHER","DEVON","MIRANDA","PAUL","TABITHA","LAMAR","STEPHANIE","ANDRE","JENNIFER","MALIK","COURTNEY","JOSE","AMANDA"];
+const lastNames  = ["JOHNSON","WILLIAMS","SMITH","BROWN","JONES","GARCIA","MILLER","DAVIS","MARTINEZ","WILSON","ANDERSON","TAYLOR","THOMAS","HERNANDEZ","MOORE","JACKSON","MARTIN","LEE","PEREZ","THOMPSON","WHITE","HARRIS","WALKER","LEWIS","ROBINSON","CLARK","RODRIGUEZ","HALL","YOUNG","ALLEN"];
+
+const RACES = ["B/M","B/F","W/M","W/F","H/M","H/F","A/M","A/F"];
+const EYES  = ["BRN","BLK","BLU","GRN","HAZ","GRY"];
+const HAIR  = ["BLK","BRN","RED","BLD","GRY","WHI","BLU","ONG"];
+const BLDS  = ["SLD","MED","THN","HVY"];
+const CITIES= ["RIDGEMONT","PITTSBURG","HIGHLAND PARK","WESTVIEW","CASTON","MAPLEWOOD","CENTERFIELD"];
+const STATES_LIST = ["PA","OH","WV","NY","MD","NJ","DE","VA"];
+
+/* ─── STATE ─────────────────────────────────────────────── */
+let warrants  = [];
+let citations = [];
+let incidents = [];
+let callsThisShift = 0;
+let cadCalls  = [];
+
+/* ─── CLOCK ────────────────────────────────────────────── */
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock-time').textContent =
+    now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  document.getElementById('clock-date').textContent =
+    now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'2-digit',year:'numeric'}).toUpperCase();
+}
+setInterval(updateClock,1000); updateClock();
+
+/* ─── PANE / TAB SWITCHING ─────────────────────────────── */
+function switchPane(el){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  const target = el.dataset.pane;
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('visible'));
+  document.getElementById(target).classList.add('visible');
+}
+
+function switchTab(el,idx){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  for(let i=0;i<3;i++){
+    const c = document.getElementById('tab-content-'+i);
+    if(c) c.style.display = i===idx?'block':'none';
+  }
+  clearResults();
+}
+
+/* ─── HELPERS ───────────────────────────────────────────── */
+function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function randDate(startY,endY){
+  const y=randInt(startY,endY), m=String(randInt(1,12)).padStart(2,'0'), d=String(randInt(1,28)).padStart(2,'0');
+  return m+'/'+d+'/'+y;
+}
+function padZ(n,z=2){ return String(n).padStart(z,'0'); }
+function fmtNow(){
+  const n=new Date();
+  return `${padZ(n.getMonth()+1)}/${padZ(n.getDate())}/${n.getFullYear()} ${padZ(n.getHours())}:${padZ(n.getMinutes())}`;
+}
+function oid(){ return '#'+String(Math.floor(Math.random()*9000000+1000000)); }
+
+function showToast(msg, type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='show'+(type==='err'?' err':'');
+  setTimeout(()=>{ t.className=''; },3200);
+}
+
+/* ─── NCIC PERSON QUERY ─────────────────────────────────── */
+function clearResults(){
+  document.getElementById('result-area').innerHTML='';
+  document.getElementById('result-area').classList.remove('visible');
+}
+
+function runQuery(){
+  const last  = document.getElementById('inp-last').value.trim().toUpperCase() || rand(lastNames);
+  const first = document.getElementById('inp-first').value.trim().toUpperCase() || rand(firstNames);
+  if(!last && !first){ showToast('Enter at least a last name or first name.','err'); return; }
+
+  clearResults();
+  const lo = document.getElementById('loading-overlay');
+  lo.classList.add('visible');
+
+  const delay = randInt(900,2200);
+  setTimeout(()=>{
+    lo.classList.remove('visible');
+    const found = Math.random()>.12;
+    if(!found){
+      document.getElementById('result-area').innerHTML = `<div class="no-result">⚠ QUERY COMPLETE — NO RECORD FOUND IN NCIC/STATE REPOSITORY<br><span style="color:var(--text-dim);font-size:10px;margin-top:4px;display:block">NAME: ${first} ${last} &nbsp;|&nbsp; CHECKED AT ${fmtNow()}</span></div>`;
+      document.getElementById('result-area').classList.add('visible');
+      return;
+    }
+    const person = generatePerson(first, last);
+    renderPersonResult(person);
+  }, delay);
+}
+
+function generatePerson(first, last){
+  const hasWarrant  = Math.random()>.55;
+  const isViolent   = Math.random()>.7;
+  const isSexOff    = Math.random()>.88;
+  const numPriors   = randInt(0, 9);
+  const dob         = randInt(1,28).toString().padStart(2,'0')+'/'+randInt(1,12).toString().padStart(2,'0')+'/'+randInt(1958,2004);
+  const dlNum       = rand(STATES_LIST)+randInt(10000000,99999999);
+  const ssn         = `XXX-XX-${randInt(1000,9999)}`;
+  const height      = `${randInt(5,6)}'${randInt(0,11)}"`;
+  const weight      = `${randInt(120,280)} LBS`;
+  const addr        = `${randInt(100,9999)} ${rand(['OAK','MAPLE','PINE','ELM','RIDGE','HIGHLAND','CEDAR','MAIN'])} ${rand(['ST','AVE','DR','BLVD','LN','CT'])}, ${rand(CITIES)}, ${rand(STATES_LIST)}`;
+
+  const myWarrants  = [];
+  if(hasWarrant){
+    const wCount = randInt(1,3);
+    for(let i=0;i<wCount;i++){
+      myWarrants.push({
+        type: rand(WARRANT_TYPES),
+        charge: rand(CRIMES),
+        issued: randDate(2019,2024),
+        caseNum: 'CP-'+randInt(1,99).toString().padStart(2,'0')+'-CR-'+randInt(1000000,9999999),
+        court: rand(['Ridgemont County CP', 'District Court 7-4-02','Common Pleas Court','Magisterial Court 7-3-01']),
+        bail: randInt(0,1)===0 ? 'NO BAIL' : '$'+randInt(500,50000).toLocaleString(),
+      });
+    }
+  }
+
+  const priors = [];
+  for(let i=0;i<numPriors;i++){
+    priors.push({
+      date:   randDate(2010,2023),
+      charge: rand(CRIMES),
+      agency: rand(['RPD','PGPD','MSP','CCSO','FBI','DEA','ATF']),
+      case:   'CP-'+randInt(1,99).toString().padStart(2,'0')+'-CR-'+randInt(1000000,9999999),
+      dispo:  rand(DISPOSITIONS),
+    });
+  }
+
+  return { first, last, dob, dlNum, ssn, race: rand(RACES), height, weight, eyes: rand(EYES), hair: rand(HAIR), build: rand(BLDS), addr, hasWarrant, isViolent, isSexOff, numPriors, warrants: myWarrants, priors };
+}
+
+function renderPersonResult(p){
+  const ra = document.getElementById('result-area');
+
+  let badges = '';
+  if(p.hasWarrant) badges += `<span class="badge warrant">⚠ ACTIVE WARRANT</span>`;
+  if(p.isViolent)  badges += `<span class="badge violent">VIOLENT OFFENDER</span>`;
+  if(p.isSexOff)   badges += `<span class="badge sex-off">SEX OFFENDER REG.</span>`;
+  if(!p.hasWarrant && !p.isViolent && !p.isSexOff) badges += `<span class="badge clear">NO ACTIVE WARRANTS</span>`;
+  if(p.numPriors>5) badges += `<span class="badge caution">PRIOR HISTORY</span>`;
+
+  let warrantHTML = '';
+  if(p.warrants.length){
+    const rows = p.warrants.map(w=>`
+      <div class="warrant-row">
+        <span class="wtype">${w.type.toUpperCase()}</span>
+        <span style="color:var(--text-sec)">${w.caseNum}</span>
+        <span>${w.court}</span>
+        <span style="color:var(--yellow)">${w.bail}</span>
+      </div>
+      <div style="font-family:var(--mono);font-size:10px;color:#aaa;padding:0 0 4px 0">
+        CHARGE: ${w.charge}<br>ISSUED: ${w.issued}
+      </div>`).join('');
+    warrantHTML = `<div class="warrant-box"><div class="wb-head">ACTIVE WARRANT(S) ON FILE — DETAIN SUBJECT</div>${rows}</div>`;
+  }
+
+  let priorHTML = '';
+  if(p.priors.length){
+    const rows = p.priors.map(r=>`
+      <tr>
+        <td class="charge">${r.charge}</td>
+        <td>${r.agency}</td>
+        <td>${r.date}</td>
+        <td class="${DISPO_CLASS[r.dispo]||''}">${r.dispo}</td>
+        <td style="color:var(--text-dim);font-size:10px">${r.case}</td>
+      </tr>`).join('');
+    priorHTML = `
+      <div class="section-head" style="margin-top:12px;">PRIOR CRIMINAL HISTORY (${p.priors.length} RECORD${p.priors.length!==1?'S':''})</div>
+      <table class="rec-table">
+        <thead><tr><th>CHARGE</th><th>AGENCY</th><th>ARREST DATE</th><th>DISPOSITION</th><th>CASE #</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } else {
+    priorHTML = `<div class="no-result" style="margin-top:12px;">NO PRIOR CRIMINAL HISTORY ON FILE</div>`;
+  }
+
+  const topBorderClass = p.hasWarrant ? 'warrant-active' : (p.numPriors===0 ? 'clean' : '');
+
+  ra.innerHTML = `
+    <div style="font-family:var(--mono);font-size:9px;color:var(--green);margin-bottom:10px;margin-top:4px;">
+      ✓ QUERY COMPLETE — RECORD LOCATED — ${fmtNow()} — NCIC/STATE REPOSITORY
+    </div>
+    <div class="result-card ${topBorderClass}">
+      <div class="rc-header">
+        <div>
+          <div class="rc-name">${p.last}, ${p.first}</div>
+          <div class="rc-dob">DOB: ${p.dob} &nbsp;|&nbsp; RACE/SEX: ${p.race} &nbsp;|&nbsp; DL: ${p.dlNum}</div>
+        </div>
+        <div class="badge-row">${badges}</div>
+      </div>
+      <div class="rc-grid">
+        <div class="rc-field"><label>HEIGHT</label><div class="val">${p.height}</div></div>
+        <div class="rc-field"><label>WEIGHT</label><div class="val">${p.weight}</div></div>
+        <div class="rc-field"><label>EYES</label><div class="val">${p.eyes}</div></div>
+        <div class="rc-field"><label>HAIR</label><div class="val">${p.hair}</div></div>
+        <div class="rc-field"><label>BUILD</label><div class="val">${p.build}</div></div>
+        <div class="rc-field"><label>SSN</label><div class="val">${p.ssn}</div></div>
+        <div class="rc-field" style="grid-column:span 2"><label>ADDRESS ON FILE</label><div class="val">${p.addr}</div></div>
+      </div>
+      ${warrantHTML}
+      ${priorHTML}
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="mdt-btn danger" onclick="openWarrantModalFor('${p.last}, ${p.first}')">ISSUE WARRANT</button>
+        <button class="mdt-btn warn"   onclick="openCiteModalFor('${p.last}, ${p.first}')">WRITE CITATION</button>
+        <button class="mdt-btn"        onclick="openIncidentModalFor('${p.last}, ${p.first}')">ADD TO INCIDENT</button>
+      </div>
+    </div>`;
+  ra.classList.add('visible');
+}
+
+/* ─── VEHICLE QUERY ─────────────────────────────────────── */
+function runVehicleQuery(){
+  const plate = document.getElementById('inp-plate').value.trim().toUpperCase() || (rand(['ABC','XYZ','RPD','TMP'])+'-'+randInt(1000,9999));
+  const lo = document.getElementById('loading-overlay');
+  lo.classList.add('visible');
+  clearResults();
+  setTimeout(()=>{
+    lo.classList.remove('visible');
+    const found = Math.random()>.1;
+    if(!found){
+      document.getElementById('result-area').innerHTML = `<div class="no-result">⚠ NO VEHICLE RECORD FOUND FOR PLATE: ${plate}</div>`;
+      document.getElementById('result-area').classList.add('visible');
+      return;
+    }
+    const makes   = ["FORD","CHEVROLET","DODGE","HONDA","TOYOTA","NISSAN","HYUNDAI","BMW","MERCEDES","KIA","GMC","RAM","JEEP","VOLKSWAGEN","SUBARU"];
+    const models  = {"FORD":["FUSION","F-150","EXPLORER","MUSTANG","ESCAPE"],"CHEVROLET":["SILVERADO","MALIBU","EQUINOX","CAMARO","TAHOE"],"DODGE":["CHARGER","CHALLENGER","DURANGO","RAM 1500"],"HONDA":["CIVIC","ACCORD","CR-V","PILOT","ODYSSEY"],"TOYOTA":["CAMRY","COROLLA","4RUNNER","TACOMA","HIGHLANDER"],"NISSAN":["ALTIMA","SENTRA","ROGUE","MAXIMA","PATHFINDER"],"HYUNDAI":["SONATA","ELANTRA","TUCSON","SANTA FE"],"BMW":["3 SERIES","5 SERIES","X5","M3","X3"],"MERCEDES":["C-CLASS","E-CLASS","GLE","GLC","S-CLASS"],"KIA":["OPTIMA","SPORTAGE","SORENTO","TELLURIDE","SOUL"],"GMC":["SIERRA","YUKON","ACADIA","TERRAIN"],"RAM":["1500","2500","3500","PROMASTER"],"JEEP":["GRAND CHEROKEE","WRANGLER","COMPASS","RENEGADE"],"VOLKSWAGEN":["JETTA","PASSAT","TIGUAN","ATLAS","GOLF"],"SUBARU":["OUTBACK","FORESTER","IMPREZA","LEGACY","CROSSTREK"]};
+    const colors  = ["BLACK","WHITE","SILVER","GRAY","RED","BLUE","GREEN","TAN","BROWN","ORANGE","YELLOW","MAROON","NAVY","DARK BLUE"];
+    const make    = rand(makes);
+    const model   = rand(models[make]||["SEDAN"]);
+    const year    = randInt(2001,2024);
+    const color   = rand(colors);
+    const stolen  = Math.random()>.85;
+    const expired = Math.random()>.7;
+    const ownLast = rand(lastNames);
+    const ownFirst= rand(firstNames);
+    const vin     = ['1','2','3','4','5'].map(()=>(Math.random().toString(36).substring(2,6).toUpperCase())).join('').substring(0,17).padEnd(17,'0');
+    document.getElementById('result-area').innerHTML = `
+      <div style="font-family:var(--mono);font-size:9px;color:var(--green);margin-bottom:10px;margin-top:4px;">✓ DMV QUERY COMPLETE — ${fmtNow()}</div>
+      <div class="result-card ${stolen?'warrant-active':''}">
+        <div class="rc-header">
+          <div>
+            <div class="rc-name">${plate} — ${color} ${year} ${make} ${model}</div>
+            <div class="rc-dob">STATE: ${document.getElementById('inp-state').value||'PA'} &nbsp;|&nbsp; VIN: ${vin}</div>
+          </div>
+          <div class="badge-row">
+            ${stolen ? '<span class="badge warrant">STOLEN VEHICLE</span>' : '<span class="badge clear">NOT REPORTED STOLEN</span>'}
+            ${expired ? '<span class="badge caution">REG. EXPIRED</span>' : ''}
+          </div>
+        </div>
+        <div class="rc-grid">
+          <div class="rc-field"><label>REGISTERED OWNER</label><div class="val">${ownFirst} ${ownLast}</div></div>
+          <div class="rc-field"><label>YEAR</label><div class="val">${year}</div></div>
+          <div class="rc-field"><label>MAKE / MODEL</label><div class="val">${make} ${model}</div></div>
+          <div class="rc-field"><label>COLOR</label><div class="val">${color}</div></div>
+          <div class="rc-field"><label>PLATE</label><div class="val">${plate}</div></div>
+          <div class="rc-field"><label>REGISTRATION EXP</label><div class="val" style="color:${expired?'var(--red)':'var(--green)'}">${expired?'EXPIRED '+randDate(2020,2023):randDate(2024,2026)}</div></div>
+          <div class="rc-field"><label>INSURED</label><div class="val" style="color:${Math.random()>.3?'var(--green)':'var(--red)'}">${Math.random()>.3?'YES — STATE FARM':'NO RECORD'}</div></div>
+          <div class="rc-field"><label>LIENHOLDER</label><div class="val">${Math.random()>.5?rand(['CHASE AUTO','WELLS FARGO','TD AUTO','ALLY FINANCIAL','BOA']):'NONE'}</div></div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <button class="mdt-btn" onclick="showToast('Vehicle history report queued.','ok')">VEHICLE HISTORY</button>
+          ${stolen?'<button class="mdt-btn danger" onclick="showToast(\'Stolen vehicle flag confirmed — contact dispatch immediately.\',\'err\')">CONFIRM STOLEN</button>':''}
+        </div>
+      </div>`;
+    document.getElementById('result-area').classList.add('visible');
+  }, randInt(800,1800));
+}
+
+/* ─── CAD CALLS ─────────────────────────────────────────── */
+function generateCalls(n){
+  const calls=[];
+  const priorities = [1,1,2,2,2,3,3,3];
+  for(let i=0;i<n;i++){
+    const pri = rand(priorities);
+    const assigned = Math.random()>.6;
+    calls.push({
+      id: 'CAD'+randInt(10000,99999),
+      type: rand(CALL_TYPES),
+      addr: rand(STREETS),
+      pri,
+      time: padZ(randInt(0,23))+':'+padZ(randInt(0,59)),
+      assigned,
+      unit: assigned ? rand(['219','231','208','254','262','247']) : null,
+    });
+  }
+  return calls;
+}
+
+function renderCAD(){
+  cadCalls = generateCalls(randInt(5,9));
+  const q = document.getElementById('cad-queue');
+  q.innerHTML = cadCalls.map(c=>`
+    <div class="call-card priority-${c.pri} ${c.assigned?'assigned':''}" onclick="assignCall('${c.id}')">
+      <div class="cc-type">${c.type}</div>
+      <div class="cc-addr">${c.addr}</div>
+      <div class="cc-meta">
+        <span class="cc-id">${c.id}</span>
+        <span class="cc-pri pri-${c.pri}">P${c.pri}${c.assigned?' | UNIT '+c.unit:''}</span>
+        <span class="cc-time">${c.time}</span>
+      </div>
+    </div>`).join('');
+}
+
+function assignCall(id){
+  callsThisShift++;
+  document.getElementById('calls-count').textContent = callsThisShift;
+  showToast(`Unit CCSO-247 assigned to call ${id}. Status set to 10-97.`);
+  setTimeout(renderCAD, 800);
+}
+
+renderCAD();
+setInterval(()=>{
+  if(Math.random()>.6) renderCAD();
+}, 18000);
+
+/* ─── WARRANT MODAL ─────────────────────────────────────── */
+function openWarrantModal(subjectPrefill=''){
+  openModal('ISSUE ARREST WARRANT', buildWarrantForm(subjectPrefill), [
+    { label:'CLEAR',   cls:'',      fn:'closeModal()' },
+    { label:'SUBMIT WARRANT', cls:'danger', fn:'submitWarrant()' },
+  ], true);
+}
+function openWarrantModalFor(name){ openWarrantModal(name); }
+
+function buildWarrantForm(subjectPrefill=''){
+  const crimeOpts = CRIMES.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const wTypeOpts = WARRANT_TYPES.map(w=>`<option>${w}</option>`).join('');
+  return `
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>SUBJECT NAME</label><input class="mdt-input" id="w-subject" style="width:100%" value="${subjectPrefill}" placeholder="LAST, FIRST"></div>
+      <div class="form-col"><label>DOB</label><input class="mdt-input sm" id="w-dob" placeholder="MM/DD/YYYY"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>WARRANT TYPE</label><select id="w-type">${wTypeOpts}</select></div>
+      <div class="form-col" style="flex:1"><label>BAIL AMOUNT</label><input class="mdt-input" id="w-bail" placeholder="e.g. $10,000 or NO BAIL" style="width:100%"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="width:100%">
+        <label>CHARGE(S) — SEARCH OR SCROLL</label>
+        <input class="mdt-input" id="w-charge-search" style="width:100%;margin-bottom:5px;" placeholder="Type to search... e.g. murder, robbery, DUI, assault" oninput="filterWarrantCharges(this.value)">
+        <div style="position:relative;">
+          <select id="w-charge" size="5" style="width:100%;background:var(--bg-card);border:1px solid var(--border-lit);color:var(--text-pri);font-family:var(--mono);font-size:11px;padding:4px;border-radius:2px;outline:none;">${crimeOpts}</select>
+          <div id="w-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:3px;letter-spacing:1px;">${CRIMES.length} CHARGES LISTED</div>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>ISSUING COURT</label><input class="mdt-input" id="w-court" style="width:100%" placeholder="Cook County Circuit Court"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="width:100%"><label>NARRATIVE / PROBABLE CAUSE</label><textarea id="w-narrative" placeholder="Describe the probable cause for this warrant..."></textarea></div>
+    </div>`;
+}
+
+function filterWarrantCharges(query){
+  const sel = document.getElementById('w-charge');
+  const count = document.getElementById('w-charge-count');
+  if(!sel) return;
+  const q = query.trim().toLowerCase();
+  const filtered = q ? CRIMES.filter(c => c.toLowerCase().includes(q)) : CRIMES;
+  sel.innerHTML = filtered.map(c=>`<option value="${c}">${c}</option>`).join('');
+  if(filtered.length > 0) sel.selectedIndex = 0;
+  count.textContent = filtered.length + ' CHARGE' + (filtered.length !== 1 ? 'S' : '') + ' LISTED' + (q ? ' (FILTERED)' : '');
+  count.style.color = q && filtered.length === 0 ? 'var(--red)' : 'var(--text-dim)';
+  if(filtered.length === 0) sel.innerHTML = '<option value="" disabled>— NO MATCHES —</option>';
+}
+
+function submitWarrant(){
+  const subject = document.getElementById('w-subject').value.trim();
+  const charge  = document.getElementById('w-charge').value;
+  const wtype   = document.getElementById('w-type').value;
+  const bail    = document.getElementById('w-bail').value || 'N/A';
+  if(!subject){ showToast('Subject name is required.','err'); return; }
+  warrants.push({ id:'WRT'+randInt(100000,999999), subject, charge, wtype, bail, date: fmtNow(), officer:'R. MALLORY #2247', status:'ACTIVE' });
+  renderWarrants();
+  closeModal();
+  showToast('Warrant issued — entered into NCIC/STATE system.');
+  callsThisShift++;
+  document.getElementById('calls-count').textContent = callsThisShift;
+}
+
+function renderWarrants(){
+  const list = document.getElementById('warrant-list');
+  if(!warrants.length){
+    list.innerHTML = `<div class="no-result">NO WARRANTS ISSUED THIS SESSION</div>`;
+    return;
+  }
+  list.innerHTML = warrants.map(w=>`
+    <div class="queue-item">
+      <div class="qi-main">
+        <div class="qi-subject">${w.subject}</div>
+        <div class="qi-detail">${w.wtype} &nbsp;|&nbsp; ${w.charge}</div>
+        <div class="qi-detail" style="margin-top:3px;">BAIL: ${w.bail} &nbsp;|&nbsp; OIC: ${w.officer}</div>
+      </div>
+      <div class="qi-meta">
+        <span class="tag w">ACTIVE</span><br>
+        ${w.id}<br>
+        ${w.date}
+      </div>
+    </div>`).join('');
+}
+renderWarrants();
+
+/* ─── CITATION MODAL ─────────────────────────────────────── */
+function openCiteModal(subjectPrefill=''){
+  openModal('WRITE TRAFFIC / CRIMINAL CITATION', buildCiteForm(subjectPrefill), [
+    { label:'CANCEL', cls:'', fn:'closeModal()' },
+    { label:'ISSUE CITATION', cls:'warn', fn:'submitCite()' },
+  ]);
+}
+function openCiteModalFor(name){ openCiteModal(name); }
+
+function buildCiteForm(subjectPrefill=''){
+  const crimeOpts = CRIMES.map(c=>`<option value="${c}">${c}</option>`).join('');
+  return `
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>SUBJECT NAME</label><input class="mdt-input" id="c-subject" style="width:100%" value="${subjectPrefill}" placeholder="LAST, FIRST"></div>
+      <div class="form-col"><label>DL #</label><input class="mdt-input sm" id="c-dl" placeholder="DL#"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>VEHICLE PLATE</label><input class="mdt-input sm" id="c-plate" placeholder="ABC-1234"></div>
+      <div class="form-col"><label>STATE</label><input class="mdt-input" id="c-vstate" style="width:60px" placeholder="IL"></div>
+      <div class="form-col" style="flex:2"><label>LOCATION OF VIOLATION</label><input class="mdt-input" id="c-loc" style="width:100%" placeholder="e.g. 1400 BLK N. HIGHLAND AVE"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="width:100%">
+        <label>VIOLATION / CHARGE — SEARCH OR SCROLL</label>
+        <input class="mdt-input" id="c-charge-search" style="width:100%;margin-bottom:5px;" placeholder="Type to search... e.g. insurance, DUI, theft, assault" oninput="filterCiteCharges(this.value)">
+        <div style="position:relative;">
+          <select id="c-charge" size="5" style="width:100%;background:var(--bg-card);border:1px solid var(--border-lit);color:var(--text-pri);font-family:var(--mono);font-size:11px;padding:4px;border-radius:2px;outline:none;">${crimeOpts}</select>
+          <div id="c-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:3px;letter-spacing:1px;">${CRIMES.length} CHARGES LISTED</div>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>FINE AMOUNT</label><input class="mdt-input" id="c-fine" placeholder="$0.00" style="width:120px"></div>
+      <div class="form-col"><label>COURT DATE</label><input class="mdt-input" id="c-courtdate" placeholder="MM/DD/YYYY" style="width:130px"></div>
+      <div class="form-col"><label>SPEED</label><input class="mdt-input" id="c-speed" placeholder="e.g. 72/55" style="width:100px"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="width:100%"><label>OFFICER NOTES</label><textarea id="c-notes" placeholder="Additional notes..."></textarea></div>
+    </div>`;
+}
+
+function filterCiteCharges(query){
+  const sel = document.getElementById('c-charge');
+  const count = document.getElementById('c-charge-count');
+  if(!sel) return;
+  const q = query.trim().toLowerCase();
+  const filtered = q ? CRIMES.filter(c => c.toLowerCase().includes(q)) : CRIMES;
+  sel.innerHTML = filtered.map(c=>`<option value="${c}">${c}</option>`).join('');
+  if(filtered.length > 0) sel.selectedIndex = 0;
+  count.textContent = filtered.length + ' CHARGE' + (filtered.length !== 1 ? 'S' : '') + ' LISTED' + (q ? ' (FILTERED)' : '');
+  count.style.color = q && filtered.length === 0 ? 'var(--red)' : 'var(--text-dim)';
+  if(filtered.length === 0) sel.innerHTML = '<option value="" disabled>— NO MATCHES —</option>';
+}
+
+function submitCite(){
+  const subject = document.getElementById('c-subject').value.trim();
+  const charge  = document.getElementById('c-charge').value;
+  const fine    = document.getElementById('c-fine').value || 'N/A';
+  const loc     = document.getElementById('c-loc').value || 'UNKNOWN LOCATION';
+  if(!subject){ showToast('Subject name is required.','err'); return; }
+  citations.push({ id:'CIT'+randInt(100000,999999), subject, charge, fine, loc, date: fmtNow(), officer:'R. MALLORY #2247', status:'ISSUED' });
+  renderCitations();
+  closeModal();
+  showToast('Citation issued — logged to system.');
+}
+
+function renderCitations(){
+  const list = document.getElementById('cite-list');
+  if(!citations.length){
+    list.innerHTML = `<div class="no-result">NO CITATIONS ISSUED THIS SESSION</div>`;
+    return;
+  }
+  list.innerHTML = citations.map(c=>`
+    <div class="queue-item">
+      <div class="qi-main">
+        <div class="qi-subject">${c.subject}</div>
+        <div class="qi-detail">${c.charge}</div>
+        <div class="qi-detail" style="margin-top:3px;">LOCATION: ${c.loc} &nbsp;|&nbsp; FINE: ${c.fine}</div>
+      </div>
+      <div class="qi-meta">
+        <span class="tag c">ISSUED</span><br>
+        ${c.id}<br>
+        ${c.date}
+      </div>
+    </div>`).join('');
+}
+renderCitations();
+
+/* ─── INCIDENT MODAL ─────────────────────────────────────── */
+function openIncidentModal(subjectPrefill=''){
+  openModal('NEW INCIDENT REPORT', buildIncidentForm(subjectPrefill), [
+    { label:'CANCEL', cls:'', fn:'closeModal()' },
+    { label:'SUBMIT REPORT', cls:'success', fn:'submitIncident()' },
+  ]);
+}
+function openIncidentModalFor(name){ openIncidentModal(name); }
+
+function buildIncidentForm(subjectPrefill=''){
+  const types = ["Assault","Domestic Violence","Robbery","Burglary","Theft","MVA","DUI","Narcotics","Disorderly Conduct","Trespass","Warrant Service","Suspicious Person","Welfare Check","Found Property","Missing Person","Death Investigation","Public Intoxication","Vandalism","Stalking/Harassment","Animal Complaint","Noise Complaint","Traffic Stop","Foot Pursuit","Vehicle Pursuit","Shots Fired","Stabbing","Medical Assist","Fire Assist","Mental Health Crisis","Other"];
+  const typeOpts = types.map(t=>`<option>${t}</option>`).join('');
+  return `
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>INCIDENT TYPE</label><select id="i-type" style="width:100%">${typeOpts}</select></div>
+      <div class="form-col"><label>PRIORITY</label><select id="i-pri" style="width:90px"><option>Priority 1</option><option>Priority 2</option><option selected>Priority 3</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>LOCATION / ADDRESS</label><input class="mdt-input" id="i-loc" style="width:100%" placeholder="${rand(STREETS)}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="flex:1"><label>SUBJECT(S) INVOLVED</label><input class="mdt-input" id="i-subject" style="width:100%" value="${subjectPrefill}" placeholder="Name(s) or UNKNOWN"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="width:100%"><label>NARRATIVE</label><textarea id="i-narrative" rows="5" placeholder="Describe the incident in detail. Include officer actions, subject descriptions, evidence collected, and any additional units requested..."></textarea></div>
+    </div>
+    <div class="form-row">
+      <div class="form-col"><label>DISPOSITION</label><select id="i-dispo" style="width:200px"><option>Arrest Made</option><option>Report Only</option><option>Gone on Arrival</option><option>Referred to DA</option><option>Civil Matter</option><option>No Crime Occurred</option><option>Pending Investigation</option></select></div>
+    </div>`;
+}
+
+function submitIncident(){
+  const type    = document.getElementById('i-type').value;
+  const loc     = document.getElementById('i-loc').value || rand(STREETS);
+  const subject = document.getElementById('i-subject').value || 'UNKNOWN';
+  const dispo   = document.getElementById('i-dispo').value;
+  incidents.push({ id:'CCSO'+padZ(randInt(1,9999),4)+'-'+new Date().getFullYear(), type, loc, subject, dispo, date: fmtNow(), officer:'R. MALLORY #2247' });
+  renderIncidents();
+  closeModal();
+  showToast('Incident report submitted — Case #'+incidents[incidents.length-1].id);
+  callsThisShift++;
+  document.getElementById('calls-count').textContent = callsThisShift;
+}
+
+function renderIncidents(){
+  const list = document.getElementById('incident-list');
+  if(!incidents.length){
+    list.innerHTML = `<div class="no-result">NO INCIDENT REPORTS THIS SESSION</div>`;
+    return;
+  }
+  list.innerHTML = incidents.map(inc=>`
+    <div class="queue-item">
+      <div class="qi-main">
+        <div class="qi-subject">${inc.type}</div>
+        <div class="qi-detail">${inc.loc}</div>
+        <div class="qi-detail" style="margin-top:3px;">SUBJECT: ${inc.subject} &nbsp;|&nbsp; DISPO: ${inc.dispo}</div>
+      </div>
+      <div class="qi-meta">
+        <span class="tag i">FILED</span><br>
+        ${inc.id}<br>
+        ${inc.date}
+      </div>
+    </div>`).join('');
+}
+renderIncidents();
+
+/* ─── GENERIC MODAL ─────────────────────────────────────── */
+function openModal(title, bodyHTML, buttons, danger=false){
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHTML;
+  document.getElementById('modal-box').className = 'modal'+(danger?' danger-border':'');
+  const foot = document.getElementById('modal-foot');
+  foot.innerHTML = buttons.map(b=>`<button class="mdt-btn ${b.cls}" onclick="${b.fn}">${b.label}</button>`).join('');
+  document.getElementById('modal-backdrop').classList.add('visible');
+}
+function closeModal(){
+  document.getElementById('modal-backdrop').classList.remove('visible');
+}
+
+// Close modal on backdrop click
+document.getElementById('modal-backdrop').addEventListener('click', function(e){
+  if(e.target === this) closeModal();
+});
+
+// Enter key on query inputs
+['inp-last','inp-first','inp-dob','inp-dl'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('keydown', e=>{ if(e.key==='Enter') runQuery(); });
+});
+
+/* ─── MY STATUS ─────────────────────────────────────────── */
+let panicActive = false;
+
+function setMyStatus(code, label, btnEl){
+  // If panic is active, cancel it first
+  if(panicActive) cancelPanic();
+
+  // Reset all status button styles
+  document.querySelectorAll('.status-btn').forEach(b=>{
+    b.style.border = '1px solid var(--border-lit)';
+    b.style.background = 'transparent';
+    b.style.color = 'var(--text-sec)';
+  });
+
+  // Highlight selected
+  const colors = { '10-8': 'var(--green)', '10-6': 'var(--yellow)', '10-7': '#666', '10-97': 'var(--orange)' };
+  const col = colors[code] || 'var(--accent)';
+  btnEl.style.border = `1px solid ${col}`;
+  btnEl.style.background = `rgba(255,255,255,.06)`;
+  btnEl.style.color = col;
+
+  // Update badge in unit list
+  const badge = document.getElementById('my-unit-stat-badge');
+  badge.textContent = code;
+  badge.style.color = col;
+  badge.style.background = `rgba(255,255,255,.05)`;
+
+  // Update status label in nav
+  document.getElementById('my-status-label').textContent = `${code} ${label}`;
+
+  showToast(`Status updated — ${code} ${label}`);
+}
+
+function triggerPanic(){
+  if(panicActive){ cancelPanic(); return; }
+  panicActive = true;
+  document.body.classList.add('panic-mode');
+
+  // Update unit badge
+  const badge = document.getElementById('my-unit-stat-badge');
+  badge.textContent = '!! PANIC';
+  badge.style.color = '#fff';
+  badge.style.background = 'var(--red)';
+
+  document.getElementById('my-status-label').textContent = '!! PANIC ALARM ACTIVE';
+  document.getElementById('panic-btn').textContent = '⚠ CANCEL PANIC';
+
+  // Show big panic toast
+  const t = document.getElementById('toast');
+  t.textContent = '⚠ PANIC ALARM TRANSMITTED — CCSO-247 — DISPATCH NOTIFIED';
+  t.className = 'show err';
+  // keep it up while panic is active
+
+  // Reset all status buttons
+  document.querySelectorAll('.status-btn').forEach(b=>{
+    b.style.border = '1px solid var(--border-lit)';
+    b.style.background = 'transparent';
+    b.style.color = 'var(--text-sec)';
+  });
+}
+
+function cancelPanic(){
+  panicActive = false;
+  document.body.classList.remove('panic-mode');
+
+  const badge = document.getElementById('my-unit-stat-badge');
+  badge.textContent = '10-8';
+  badge.style.color = 'var(--green)';
+  badge.style.background = 'rgba(29,185,84,.15)';
+
+  document.getElementById('my-status-label').textContent = '10-8 AVAILABLE';
+  document.getElementById('panic-btn').textContent = '⚠ PANIC ALARM';
+
+  // Re-highlight 10-8 button
+  const avail = document.querySelector('.status-btn[data-code="10-8"]');
+  if(avail){
+    avail.style.border = '1px solid var(--green)';
+    avail.style.background = 'rgba(29,185,84,.15)';
+    avail.style.color = 'var(--green)';
+  }
+
+  const t = document.getElementById('toast');
+  t.className = '';
+  showToast('Panic alarm cancelled — status reset to 10-8');
+}
+
+/* ─── PAGE UP KEY → PANIC ───────────────────────────────── */
+document.addEventListener('keydown', function(e){
+  if(e.key === 'PageUp'){
+    e.preventDefault();
+    triggerPanic();
+  }
+});
+</script>
+</body>
+</html>
