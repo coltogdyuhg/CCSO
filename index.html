@@ -520,11 +520,39 @@
     background: var(--bg-panel);
     border: 1px solid var(--border-lit);
     border-top: 3px solid var(--accent);
-    width: 520px;
-    max-width: 95vw;
-    max-height: 85vh;
+    width: 640px;
+    max-width: 97vw;
+    max-height: 90vh;
     overflow-y: auto;
     border-radius: 2px;
+  }
+  /* charge list select fix */
+  .charge-list {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border-lit);
+    color: var(--text-pri);
+    font-family: var(--mono);
+    font-size: 11px;
+    border-radius: 2px;
+    outline: none;
+    height: 160px;
+    cursor: pointer;
+  }
+  .charge-list:focus { border-color: var(--accent); }
+  .charge-list option {
+    padding: 5px 8px;
+    color: var(--text-pri);
+    background: var(--bg-card);
+  }
+  .charge-list option:checked { background: var(--accent); color: #fff; }
+  .charge-list optgroup {
+    color: var(--yellow);
+    font-size: 10px;
+    letter-spacing: 1px;
+    background: #080d12;
+    font-style: normal;
+    font-weight: 700;
   }
   .modal.danger-border { border-top-color: var(--red); }
   .modal-head {
@@ -871,131 +899,249 @@
 <script>
 /* ─── DATA ─────────────────────────────────────────────── */
 
-const CRIMES = [
-  // Violent
-  "18 PA C.S. § 2502(a) — Murder in the First Degree",
-  "18 PA C.S. § 2502(b) — Murder in the Second Degree",
-  "18 PA C.S. § 2502(c) — Murder in the Third Degree",
-  "18 PA C.S. § 2503 — Voluntary Manslaughter",
-  "18 PA C.S. § 2504 — Involuntary Manslaughter",
-  "18 PA C.S. § 2701 — Simple Assault",
-  "18 PA C.S. § 2702 — Aggravated Assault",
-  "18 PA C.S. § 2706 — Terroristic Threats",
-  "18 PA C.S. § 2709 — Harassment",
-  "18 PA C.S. § 2709.1 — Stalking",
-  "18 PA C.S. § 2711 — Probable Cause — Domestic",
-  "18 PA C.S. § 2718 — Strangulation",
-  "18 PA C.S. § 2901 — Kidnapping",
-  "18 PA C.S. § 2902 — Unlawful Restraint",
-  "18 PA C.S. § 2903 — False Imprisonment",
-  "18 PA C.S. § 3121 — Rape",
-  "18 PA C.S. § 3122.1 — Statutory Sexual Assault",
-  "18 PA C.S. § 3123 — Involuntary Deviate Sexual Intercourse",
-  "18 PA C.S. § 3124.1 — Sexual Assault",
-  "18 PA C.S. § 3126 — Indecent Assault",
-  "18 PA C.S. § 3127 — Indecent Exposure",
-  "18 PA C.S. § 3131 — Unlawful Dissemination of Intimate Image",
-  // Property
-  "18 PA C.S. § 3301 — Arson",
-  "18 PA C.S. § 3304 — Criminal Mischief",
-  "18 PA C.S. § 3311 — Ecoterrorism",
-  "18 PA C.S. § 3501 — Robbery",
-  "18 PA C.S. § 3502 — Burglary",
-  "18 PA C.S. § 3503 — Criminal Trespass",
-  "18 PA C.S. § 3701 — Robbery",
-  "18 PA C.S. § 3702 — Robbery of Motor Vehicle",
-  "18 PA C.S. § 3921 — Theft by Unlawful Taking",
-  "18 PA C.S. § 3922 — Theft by Deception",
-  "18 PA C.S. § 3925 — Receiving Stolen Property",
-  "18 PA C.S. § 3928 — Unauthorized Use of Automobile",
-  "18 PA C.S. § 3929 — Retail Theft",
-  "18 PA C.S. § 3932 — Theft of Trade Secrets",
-  "18 PA C.S. § 3934 — Theft from Motor Vehicle",
-  // Drugs
-  "35 P.S. § 780-113(a)(30) — PWID Schedule I/II Controlled Substance",
-  "35 P.S. § 780-113(a)(16) — Possession of Controlled Substance",
-  "35 P.S. § 780-113(a)(12) — Acquisition by Fraud",
-  "35 P.S. § 780-113(a)(32) — Delivery of Controlled Substance to Minor",
-  "35 P.S. § 780-113(a)(19) — Manufacture / Delivery — Schedule II",
-  "18 PA C.S. § 7508 — Drug Trafficking Sentencing & Penalties",
-  "35 P.S. § 780-113(a)(31) — PWID — Marijuana",
-  // Weapons
-  "18 PA C.S. § 6105 — Persons Not to Possess Firearms",
-  "18 PA C.S. § 6106 — Firearms Not to Be Carried w/o License",
-  "18 PA C.S. § 6108 — Carrying Firearms on Public Streets",
-  "18 PA C.S. § 6110.1 — Possession of Firearm by Minor",
-  "18 PA C.S. § 6111 — Sale or Transfer of Firearms",
-  "18 PA C.S. § 6301 — Corruption of Minors",
-  "18 PA C.S. § 908 — Prohibited Offensive Weapons",
-  "18 PA C.S. § 912 — Possession of Weapon on School Property",
-  // DUI / Traffic
-  "75 PA C.S. § 3802(a)(1) — DUI — General Impairment",
-  "75 PA C.S. § 3802(b) — DUI — High BAC (.10-.159)",
-  "75 PA C.S. § 3802(c) — DUI — Highest BAC (.16+)",
-  "75 PA C.S. § 3802(d) — DUI — Controlled Substance",
-  "75 PA C.S. § 3732 — Aggravated Assault by Vehicle",
-  "75 PA C.S. § 3735 — Homicide by Vehicle While DUI",
-  "75 PA C.S. § 3742 — Accidents Involving Death or Personal Injury",
-  "75 PA C.S. § 3301 — Driving on Right Side of Roadway",
-  "75 PA C.S. § 3361 — Driving Vehicle at Safe Speed",
-  "75 PA C.S. § 3362 — Maximum Speed Limits",
-  "75 PA C.S. § 3714 — Careless Driving",
-  "75 PA C.S. § 3736 — Reckless Driving",
-  "75 PA C.S. § 3341 — Duty to Stop for Traffic-Control Signals",
-  "75 PA C.S. § 4303 — Required Lamps",
-  "75 PA C.S. § 1786 — Required Financial Responsibility",
-  "75 PA C.S. § 1501 — Driving While Operating Privilege is Suspended",
-  "75 PA C.S. § 1543(b) — DUS — DUI Related",
-  "75 PA C.S. § 3345 — Failure to Stop for School Bus",
-  // Fraud / Financial
-  "18 PA C.S. § 4101 — Forgery",
-  "18 PA C.S. § 4106 — Access Device Fraud",
-  "18 PA C.S. § 4107 — Deceptive Business Practices",
-  "18 PA C.S. § 4111 — Stealing or Receiving Stolen Credit Cards",
-  "18 PA C.S. § 4120 — Identity Theft",
-  "18 PA C.S. § 4130 — False Identification to Law Enforcement",
-  "18 PA C.S. § 4904 — Unsworn Falsification to Authorities",
-  "18 PA C.S. § 4906 — False Reports to Law Enforcement",
-  "18 PA C.S. § 4114 — Securing Execution of Documents by Deception",
-  // Public Order
-  "18 PA C.S. § 5101 — Obstruction of Justice",
-  "18 PA C.S. § 5102 — Perjury",
-  "18 PA C.S. § 5104 — Resisting Arrest or Other Law Enforcement",
-  "18 PA C.S. § 5105 — Hindering Apprehension or Prosecution",
-  "18 PA C.S. § 5106 — Failure to Report Injuries",
-  "18 PA C.S. § 5107 — Aiding Consummation of Crime",
-  "18 PA C.S. § 5108 — Compounding",
-  "18 PA C.S. § 5110 — Escape",
-  "18 PA C.S. § 5121 — Escape",
-  "18 PA C.S. § 5122 — Weapons or Implements for Escape",
-  "18 PA C.S. § 5501 — Riot",
-  "18 PA C.S. § 5502 — Failure of Disorderly Persons to Disperse",
-  "18 PA C.S. § 5503 — Disorderly Conduct",
-  "18 PA C.S. § 5505 — Public Drunkenness",
-  "18 PA C.S. § 5507 — Obstructing Highways",
-  "18 PA C.S. § 5510 — Loitering and Prowling at Night",
-  "18 PA C.S. § 6308 — Purchase, Consumption, or Possession of Liquor — Minor",
-  // Cyber / Other
-  "18 PA C.S. § 7601 — Computer Offenses",
-  "18 PA C.S. § 7603 — Unlawful Use of Computer",
-  "18 PA C.S. § 7611 — Unlawful Duplication",
-  "18 PA C.S. § 7612 — Criminal Invasion of Computer Privacy",
-  "18 PA C.S. § 7614 — Distribution of Computer Virus",
-  "18 PA C.S. § 3930 — Theft of Intellectual Property",
-  "18 PA C.S. § 4952 — Intimidation of Witnesses or Victims",
-  "18 PA C.S. § 4953 — Retaliation Against Witness",
-  "18 PA C.S. § 2705 — Recklessly Endangering Another Person",
-  "18 PA C.S. § 5902 — Prostitution and Related Offenses",
-  "18 PA C.S. § 5903 — Obscene and Other Sexual Materials",
-  "18 PA C.S. § 5904 — Public Exhibition of Films",
-  "18 PA C.S. § 6312 — Sexual Abuse of Children — Production",
-  "18 PA C.S. § 6318 — Unlawful Contact with Minor",
-  "18 PA C.S. § 6320 — Sexual Exploitation of Children",
-  "18 PA C.S. § 2803 — Causing or Risking Catastrophe",
-  "18 PA C.S. § 5511 — Cruelty to Animals",
-  "18 PA C.S. § 4902 — Perjury",
-  "18 PA C.S. § 4910 — Tampering with / Fabricating Physical Evidence",
+const CRIME_CATEGORIES = [
+  {
+    label: "🚗  TRAFFIC — MOVING VIOLATIONS",
+    charges: [
+      "625 ILCS 5/11-601(a) — Speeding (1–20 mph over limit)",
+      "625 ILCS 5/11-601(b) — Speeding (21–30 mph over limit)",
+      "625 ILCS 5/11-601(c) — Speeding (31+ mph over limit — Aggravated)",
+      "625 ILCS 5/11-601.5 — Speeding in School Zone",
+      "625 ILCS 5/11-601.5(b) — Aggravated Speeding in School Zone",
+      "625 ILCS 5/11-503(a) — Reckless Driving",
+      "625 ILCS 5/11-503(b) — Aggravated Reckless Driving",
+      "625 ILCS 5/11-402 — Failure to Reduce Speed to Avoid Accident",
+      "625 ILCS 5/11-305 — Failure to Obey Traffic Control Signal",
+      "625 ILCS 5/11-306 — Failure to Obey Stop Sign",
+      "625 ILCS 5/11-307 — Failure to Yield — Right of Way",
+      "625 ILCS 5/11-904 — Failure to Yield to Emergency Vehicle",
+      "625 ILCS 5/11-1002 — Failure to Stop for School Bus",
+      "625 ILCS 5/11-709 — Improper Lane Usage",
+      "625 ILCS 5/11-706 — Improper Passing",
+      "625 ILCS 5/11-802 — Improper Turn / Failure to Signal",
+      "625 ILCS 5/11-804 — Illegal U-Turn",
+      "625 ILCS 5/11-1301 — Illegal Parking",
+      "625 ILCS 5/11-1302 — Parking in Fire Lane",
+      "625 ILCS 5/11-1303 — Parking in Handicap Zone w/o Placard",
+      "625 ILCS 5/11-1414 — Following Too Closely (Tailgating)",
+      "625 ILCS 5/11-1003 — Improper Passing of School Bus",
+      "625 ILCS 5/11-502 — Street Racing / Drag Racing",
+      "625 ILCS 5/11-703 — Wrong Way / Wrong Side of Road",
+      "625 ILCS 5/11-205.1 — Using Mobile Device While Driving",
+      "625 ILCS 5/11-501.1 — Texting While Driving",
+    ]
+  },
+  {
+    label: "🪪  TRAFFIC — LICENSE & REGISTRATION",
+    charges: [
+      "625 ILCS 5/6-101 — Driving Without a Valid Driver's License",
+      "625 ILCS 5/6-303 — Driving While License Suspended or Revoked",
+      "625 ILCS 5/6-303(d) — Aggravated DWS — DUI Related",
+      "625 ILCS 5/6-304 — Driving Without Classification / Endorsement",
+      "625 ILCS 5/6-104 — Expired Driver's License",
+      "625 ILCS 5/6-105 — Unlicensed Driver — No Valid License Ever Issued",
+      "625 ILCS 5/3-701 — Expired Vehicle Registration",
+      "625 ILCS 5/3-702 — Operating Unregistered Vehicle",
+      "625 ILCS 5/3-703 — Improper / Fictitious Registration",
+      "625 ILCS 5/3-413 — Improper Display of License Plates",
+      "625 ILCS 5/3-415 — Obstructed / Illegible License Plate",
+      "625 ILCS 5/6-112 — Failure to Carry / Present Driver's License",
+      "625 ILCS 5/3-601 — Failure to Transfer Title",
+      "625 ILCS 5/7-601 — No Proof of Insurance (Financial Responsibility)",
+      "625 ILCS 5/7-602 — Expired Insurance / Insurance Not in Force",
+      "625 ILCS 5/7-603 — False Proof of Insurance",
+      "625 ILCS 5/3-816 — Expired Vehicle Safety Inspection Sticker",
+      "625 ILCS 5/12-601 — Required Equipment — No Headlights",
+      "625 ILCS 5/12-602 — Defective Headlights / Taillights",
+      "625 ILCS 5/12-611 — Broken / No Brake Lights",
+      "625 ILCS 5/12-503 — Obstructed Windshield / Illegal Tint",
+      "625 ILCS 5/12-610.2 — Improper Use of Electronic Device",
+    ]
+  },
+  {
+    label: "🍺  TRAFFIC — DUI / ALCOHOL",
+    charges: [
+      "625 ILCS 5/11-501(a)(1) — DUI — BAC .08 or More",
+      "625 ILCS 5/11-501(a)(2) — DUI — Under Influence of Alcohol",
+      "625 ILCS 5/11-501(a)(3) — DUI — Under Influence of Drugs",
+      "625 ILCS 5/11-501(a)(4) — DUI — Under Influence of Intoxicating Compound",
+      "625 ILCS 5/11-501(a)(6) — DUI — BAC .16 or More (Aggravated)",
+      "625 ILCS 5/11-501(d)(1)(A) — Aggravated DUI — Great Bodily Harm",
+      "625 ILCS 5/11-501(d)(1)(C) — Aggravated DUI — Child Passenger Under 16",
+      "625 ILCS 5/11-501(d)(1)(D) — Aggravated DUI — No Valid License",
+      "625 ILCS 5/11-501(d)(1)(F) — Aggravated DUI — School Bus Zone",
+      "625 ILCS 5/11-501(d)(2) — Aggravated DUI — Causing Death",
+      "625 ILCS 5/11-501.2 — Refusal to Submit to Chemical Test",
+      "625 ILCS 5/11-401 — Leaving Scene of Accident Involving Injury",
+      "625 ILCS 5/11-403 — Leaving Scene of Accident — Property Damage",
+      "625 ILCS 5/11-404 — Duty to Report Accident",
+    ]
+  },
+  {
+    label: "🔫  VIOLENT CRIMES",
+    charges: [
+      "720 ILCS 5/9-1 — First Degree Murder",
+      "720 ILCS 5/9-2 — Second Degree Murder",
+      "720 ILCS 5/9-3 — Involuntary Manslaughter",
+      "720 ILCS 5/9-3.2 — Involuntary Manslaughter — Motor Vehicle",
+      "720 ILCS 5/12-3 — Simple Battery",
+      "720 ILCS 5/12-3.05 — Aggravated Battery",
+      "720 ILCS 5/12-3.05(e)(1) — Aggravated Battery — Firearm",
+      "720 ILCS 5/12-3.2 — Domestic Battery",
+      "720 ILCS 5/12-3.3 — Aggravated Domestic Battery",
+      "720 ILCS 5/12-1 — Assault",
+      "720 ILCS 5/12-2 — Aggravated Assault",
+      "720 ILCS 5/12-6 — Intimidation",
+      "720 ILCS 5/12-6.2 — Aggravated Intimidation",
+      "720 ILCS 5/12-7.3 — Stalking",
+      "720 ILCS 5/12-7.4 — Aggravated Stalking",
+      "720 ILCS 5/12-7.5 — Cyberstalking",
+      "720 ILCS 5/10-1 — Kidnapping",
+      "720 ILCS 5/10-2 — Aggravated Kidnapping",
+      "720 ILCS 5/10-3 — Unlawful Restraint",
+      "720 ILCS 5/10-3.1 — Aggravated Unlawful Restraint",
+      "720 ILCS 5/12-3.4 — Strangulation",
+      "720 ILCS 5/12-7.1 — Hate Crime",
+    ]
+  },
+  {
+    label: "🏠  PROPERTY CRIMES",
+    charges: [
+      "720 ILCS 5/19-1 — Burglary",
+      "720 ILCS 5/19-3 — Residential Burglary",
+      "720 ILCS 5/19-4 — Criminal Trespass to Residence",
+      "720 ILCS 5/21-3 — Criminal Trespass to Land / Vehicle",
+      "720 ILCS 5/18-1 — Robbery",
+      "720 ILCS 5/18-2 — Armed Robbery",
+      "720 ILCS 5/18-3 — Vehicular Hijacking",
+      "720 ILCS 5/18-4 — Aggravated Vehicular Hijacking",
+      "720 ILCS 5/16-1 — Theft (Under $500)",
+      "720 ILCS 5/16-1 — Theft ($500–$10,000 — Class 3 Felony)",
+      "720 ILCS 5/16-1 — Theft (Over $10,000 — Class 2 Felony)",
+      "720 ILCS 5/16-1(a)(4) — Theft — Deceptive Practices",
+      "720 ILCS 5/16-1.1 — Retail Theft (Under $300)",
+      "720 ILCS 5/16-1.1 — Retail Theft ($300+ — Felony)",
+      "720 ILCS 5/16D-3 — Computer Fraud / Theft",
+      "720 ILCS 5/4-103 — Motor Vehicle Theft",
+      "720 ILCS 5/4-103.2 — Aggravated Motor Vehicle Theft",
+      "720 ILCS 5/21-1 — Criminal Damage to Property",
+      "720 ILCS 5/21-1.01 — Criminal Damage to Government Property",
+      "720 ILCS 5/20-1 — Arson",
+      "720 ILCS 5/20-1.1 — Aggravated Arson",
+      "720 ILCS 5/20-1.2 — Residential Arson",
+      "720 ILCS 5/16-30 — Financial Identity Theft",
+    ]
+  },
+  {
+    label: "💊  DRUG OFFENSES",
+    charges: [
+      "720 ILCS 570/402(c) — Possession of Controlled Substance — Class 4",
+      "720 ILCS 570/402(b) — Possession of Controlled Substance — Class 3",
+      "720 ILCS 570/402(a) — Possession of Controlled Substance — Class 1",
+      "720 ILCS 550/4(a) — Possession of Cannabis (Under 10g — Civil)",
+      "720 ILCS 550/4(b) — Possession of Cannabis (10–30g)",
+      "720 ILCS 550/4(d) — Possession of Cannabis (Over 100g — Felony)",
+      "720 ILCS 570/401(c) — Delivery / Manufacture — Schedule III/IV",
+      "720 ILCS 570/401(b) — Manufacture / Delivery — Schedule I/II",
+      "720 ILCS 570/401(a)(1)(A) — Drug Trafficking — Heroin (15g+)",
+      "720 ILCS 570/401(a)(2)(A) — Drug Trafficking — Cocaine (15g+)",
+      "720 ILCS 570/401(a)(7)(A) — Drug Trafficking — Fentanyl",
+      "720 ILCS 570/407 — Delivery to Person Under 18",
+      "720 ILCS 570/404 — Delivery Within 1,000 ft of School / Church",
+      "720 ILCS 570/405 — Drug-Induced Homicide",
+      "720 ILCS 570/406.2 — Possession of Drug Paraphernalia",
+      "720 ILCS 646/55 — Methamphetamine Possession",
+      "720 ILCS 646/60 — Methamphetamine Manufacture",
+    ]
+  },
+  {
+    label: "🔧  WEAPONS OFFENSES",
+    charges: [
+      "720 ILCS 5/24-1 — Unlawful Use of Weapons",
+      "720 ILCS 5/24-1.1 — Unlawful Use or Possession of Weapons by Felon",
+      "720 ILCS 5/24-1.2 — Aggravated Discharge of a Firearm",
+      "720 ILCS 5/24-1.5 — Reckless Discharge of a Firearm",
+      "720 ILCS 5/24-1.6 — Aggravated Unlawful Use of a Weapon (AUUW)",
+      "720 ILCS 5/24-1.7 — Armed Habitual Criminal",
+      "720 ILCS 5/24-2.5 — Possession of Firearm — No FOID Card",
+      "720 ILCS 5/24-3 — Unlawful Sale / Transfer of Firearms",
+      "720 ILCS 5/24-3A — Straw Purchase of Firearm",
+      "720 ILCS 5/24-4 — Firearms Carried in Vehicle — Unlawful",
+      "720 ILCS 5/24-9 — Firearm Stored Without Trigger Lock / Safe",
+      "720 ILCS 5/26-1 — Disorderly Conduct w/ Firearm",
+      "720 ILCS 5/24-1(a)(7)(i) — Concealed Carry — No FCCL",
+    ]
+  },
+  {
+    label: "🚨  PUBLIC ORDER / OBSTRUCTION",
+    charges: [
+      "720 ILCS 5/31-1 — Resisting or Obstructing a Peace Officer",
+      "720 ILCS 5/31-1a — Obstructing Justice",
+      "720 ILCS 5/31-4 — Obstructing Justice — Evidence",
+      "720 ILCS 5/31-6 — Escape",
+      "720 ILCS 5/31-7 — Aiding Escape",
+      "720 ILCS 5/32-2 — Perjury",
+      "720 ILCS 5/32-4 — Intimidation of Witness",
+      "720 ILCS 5/32-4a — Harassing Witness",
+      "720 ILCS 5/32-8 — Tampering with Evidence",
+      "720 ILCS 5/32-10 — Violation of Bail Bond",
+      "720 ILCS 5/25-1 — Mob Action",
+      "720 ILCS 5/26-1 — Disorderly Conduct",
+      "720 ILCS 5/26-6 — Spreading False Reports of Bomb / Hazard",
+      "720 ILCS 5/26.5-1 — Cyberbullying",
+      "720 ILCS 5/12-6.3 — Threatening a Public Official",
+    ]
+  },
+  {
+    label: "💳  FRAUD / FINANCIAL CRIMES",
+    charges: [
+      "720 ILCS 5/17-1 — Deceptive Practices / Fraud",
+      "720 ILCS 5/17-3 — Forgery",
+      "720 ILCS 5/16-16 — Theft by Lessee",
+      "720 ILCS 5/17-5 — Credit Card Fraud",
+      "720 ILCS 5/17-8 — Fraud on Governmental Entity",
+      "720 ILCS 5/17-10.5 — Mail Fraud / Wire Fraud",
+      "720 ILCS 5/16-30 — Financial Identity Theft (Under $300)",
+      "720 ILCS 5/16-30(b) — Aggravated Identity Theft ($300+)",
+      "720 ILCS 5/17-1(B)(a) — Check Fraud — Insufficient Funds",
+      "720 ILCS 5/26-3 — Interference with Emergency Communication",
+      "720 ILCS 5/17-51 — Telecommunications Fraud",
+      "720 ILCS 5/17-56 — Computer Tampering",
+    ]
+  },
+  {
+    label: "🧒  JUVENILE / FAMILY",
+    charges: [
+      "720 ILCS 5/11-6 — Indecent Solicitation of a Child",
+      "720 ILCS 5/11-6.5 — Indecent Solicitation of an Adult",
+      "720 ILCS 5/11-9.1 — Sexual Exploitation of a Child",
+      "720 ILCS 5/11-20.1 — Child Pornography — Production",
+      "720 ILCS 5/11-20.1B — Child Pornography — Possession",
+      "720 ILCS 5/12C-5 — Child Endangerment",
+      "720 ILCS 5/12C-10 — Contributing to Delinquency of Minor",
+      "720 ILCS 5/12-21.5 — Abandonment / Endangerment of Child",
+      "720 ILCS 5/12-3.3 — Abuse / Neglect of Elderly or Disabled",
+      "720 ILCS 5/12-30 — Violation of Order of Protection",
+      "720 ILCS 5/12-3.5 — Interfering with Reporting of Domestic Violence",
+    ]
+  },
+  {
+    label: "🔇  ALCOHOL / VICE",
+    charges: [
+      "235 ILCS 5/6-20 — Sale of Alcohol to Minor",
+      "235 ILCS 5/6-20(a) — Purchase / Possession of Alcohol by Minor",
+      "720 ILCS 5/11-14 — Prostitution",
+      "720 ILCS 5/11-14.3 — Promoting Prostitution",
+      "720 ILCS 5/28-1 — Gambling",
+      "720 ILCS 5/28-3 — Keeping a Gambling Place",
+      "720 ILCS 5/5/26-5 — Public Indecency",
+      "720 ILCS 5/5-8 — Public Intoxication / Disorderly Conduct",
+    ]
+  },
 ];
+
+// Flat list for backward compatibility (random picks, etc.)
+const CRIMES = CRIME_CATEGORIES.flatMap(cat => cat.charges);
 
 const WARRANT_TYPES = ["Arrest Warrant", "Bench Warrant", "Search Warrant", "Failure to Appear", "Extradition Warrant", "Civil Warrant"];
 const DISPOSITIONS = ["GUILTY PLEA", "CONVICTED", "NOLLE PROSEQUI", "ACQUITTED", "ARD PROGRAM", "PROBATION", "DISMISSED", "PENDING TRIAL"];
@@ -1335,7 +1481,7 @@ function openWarrantModal(subjectPrefill=''){
 function openWarrantModalFor(name){ openWarrantModal(name); }
 
 function buildWarrantForm(subjectPrefill=''){
-  const crimeOpts = CRIMES.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const { html: chargeHTML, totalShown } = buildChargeOptgroups('');
   const wTypeOpts = WARRANT_TYPES.map(w=>`<option>${w}</option>`).join('');
   return `
     <div class="form-row">
@@ -1348,12 +1494,10 @@ function buildWarrantForm(subjectPrefill=''){
     </div>
     <div class="form-row">
       <div class="form-col" style="width:100%">
-        <label>CHARGE(S) — SEARCH OR SCROLL</label>
-        <input class="mdt-input" id="w-charge-search" style="width:100%;margin-bottom:5px;" placeholder="Type to search... e.g. murder, robbery, DUI, assault" oninput="filterWarrantCharges(this.value)">
-        <div style="position:relative;">
-          <select id="w-charge" size="5" style="width:100%;background:var(--bg-card);border:1px solid var(--border-lit);color:var(--text-pri);font-family:var(--mono);font-size:11px;padding:4px;border-radius:2px;outline:none;">${crimeOpts}</select>
-          <div id="w-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:3px;letter-spacing:1px;">${CRIMES.length} CHARGES LISTED</div>
-        </div>
+        <label>CHARGE(S) — SEARCH OR SCROLL BY CATEGORY</label>
+        <input class="mdt-input" id="w-charge-search" style="width:100%;margin-bottom:6px;" placeholder='Search: "murder" "robbery" "DUI" "assault" "weapon"…' oninput="filterWarrantCharges(this.value)">
+        <select id="w-charge" class="charge-list">${chargeHTML}</select>
+        <div id="w-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:4px;letter-spacing:1px;">${totalShown} CHARGES TOTAL ACROSS ALL CATEGORIES</div>
       </div>
     </div>
     <div class="form-row">
@@ -1368,13 +1512,12 @@ function filterWarrantCharges(query){
   const sel = document.getElementById('w-charge');
   const count = document.getElementById('w-charge-count');
   if(!sel) return;
-  const q = query.trim().toLowerCase();
-  const filtered = q ? CRIMES.filter(c => c.toLowerCase().includes(q)) : CRIMES;
-  sel.innerHTML = filtered.map(c=>`<option value="${c}">${c}</option>`).join('');
-  if(filtered.length > 0) sel.selectedIndex = 0;
-  count.textContent = filtered.length + ' CHARGE' + (filtered.length !== 1 ? 'S' : '') + ' LISTED' + (q ? ' (FILTERED)' : '');
-  count.style.color = q && filtered.length === 0 ? 'var(--red)' : 'var(--text-dim)';
-  if(filtered.length === 0) sel.innerHTML = '<option value="" disabled>— NO MATCHES —</option>';
+  const { html, totalShown } = buildChargeOptgroups(query);
+  sel.innerHTML = html;
+  if(totalShown > 0) sel.selectedIndex = 0;
+  const q = query.trim();
+  count.textContent = totalShown + ' CHARGE' + (totalShown !== 1 ? 'S' : '') + (q ? ` MATCHING "${q.toUpperCase()}"` : ' TOTAL ACROSS ALL CATEGORIES');
+  count.style.color = q && totalShown === 0 ? 'var(--red)' : 'var(--text-dim)';
 }
 
 function submitWarrant(){
@@ -1422,8 +1565,48 @@ function openCiteModal(subjectPrefill=''){
 }
 function openCiteModalFor(name){ openCiteModal(name); }
 
+function buildChargeOptgroups(filterQ){
+  const q = filterQ ? filterQ.trim().toLowerCase() : '';
+  let html = '';
+  let totalShown = 0;
+  CRIME_CATEGORIES.forEach(cat => {
+    const matches = q ? cat.charges.filter(c => c.toLowerCase().includes(q)) : cat.charges;
+    if(matches.length === 0) return;
+    totalShown += matches.length;
+    html += `<optgroup label="${cat.label}">`;
+    matches.forEach(c => { html += `<option value="${c}">${c}</option>`; });
+    html += `</optgroup>`;
+  });
+  if(!html) html = `<option value="" disabled>— NO MATCHES FOR "${filterQ}" —</option>`;
+  return { html, totalShown };
+}
+
+function filterCiteCharges(query){
+  const sel = document.getElementById('c-charge');
+  const count = document.getElementById('c-charge-count');
+  if(!sel) return;
+  const { html, totalShown } = buildChargeOptgroups(query);
+  sel.innerHTML = html;
+  if(totalShown > 0) sel.selectedIndex = 0;
+  const q = query.trim();
+  count.textContent = totalShown + ' CHARGE' + (totalShown !== 1 ? 'S' : '') + (q ? ` MATCHING "${q.toUpperCase()}"` : ' TOTAL ACROSS ALL CATEGORIES');
+  count.style.color = q && totalShown === 0 ? 'var(--red)' : 'var(--text-dim)';
+}
+
+function filterWarrantCharges(query){
+  const sel = document.getElementById('w-charge');
+  const count = document.getElementById('w-charge-count');
+  if(!sel) return;
+  const { html, totalShown } = buildChargeOptgroups(query);
+  sel.innerHTML = html;
+  if(totalShown > 0) sel.selectedIndex = 0;
+  const q = query.trim();
+  count.textContent = totalShown + ' CHARGE' + (totalShown !== 1 ? 'S' : '') + (q ? ` MATCHING "${q.toUpperCase()}"` : ' TOTAL ACROSS ALL CATEGORIES');
+  count.style.color = q && totalShown === 0 ? 'var(--red)' : 'var(--text-dim)';
+}
+
 function buildCiteForm(subjectPrefill=''){
-  const crimeOpts = CRIMES.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const { html: chargeHTML, totalShown } = buildChargeOptgroups('');
   return `
     <div class="form-row">
       <div class="form-col" style="flex:1"><label>SUBJECT NAME</label><input class="mdt-input" id="c-subject" style="width:100%" value="${subjectPrefill}" placeholder="LAST, FIRST"></div>
@@ -1436,12 +1619,10 @@ function buildCiteForm(subjectPrefill=''){
     </div>
     <div class="form-row">
       <div class="form-col" style="width:100%">
-        <label>VIOLATION / CHARGE — SEARCH OR SCROLL</label>
-        <input class="mdt-input" id="c-charge-search" style="width:100%;margin-bottom:5px;" placeholder="Type to search... e.g. insurance, DUI, theft, assault" oninput="filterCiteCharges(this.value)">
-        <div style="position:relative;">
-          <select id="c-charge" size="5" style="width:100%;background:var(--bg-card);border:1px solid var(--border-lit);color:var(--text-pri);font-family:var(--mono);font-size:11px;padding:4px;border-radius:2px;outline:none;">${crimeOpts}</select>
-          <div id="c-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:3px;letter-spacing:1px;">${CRIMES.length} CHARGES LISTED</div>
-        </div>
+        <label>VIOLATION / CHARGE — SEARCH OR SCROLL BY CATEGORY</label>
+        <input class="mdt-input" id="c-charge-search" style="width:100%;margin-bottom:6px;" placeholder='Search: "insurance" "DUI" "speeding" "assault" "theft"…' oninput="filterCiteCharges(this.value)">
+        <select id="c-charge" class="charge-list">${chargeHTML}</select>
+        <div id="c-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:4px;letter-spacing:1px;">${totalShown} CHARGES TOTAL ACROSS ALL CATEGORIES</div>
       </div>
     </div>
     <div class="form-row">
@@ -1452,19 +1633,6 @@ function buildCiteForm(subjectPrefill=''){
     <div class="form-row">
       <div class="form-col" style="width:100%"><label>OFFICER NOTES</label><textarea id="c-notes" placeholder="Additional notes..."></textarea></div>
     </div>`;
-}
-
-function filterCiteCharges(query){
-  const sel = document.getElementById('c-charge');
-  const count = document.getElementById('c-charge-count');
-  if(!sel) return;
-  const q = query.trim().toLowerCase();
-  const filtered = q ? CRIMES.filter(c => c.toLowerCase().includes(q)) : CRIMES;
-  sel.innerHTML = filtered.map(c=>`<option value="${c}">${c}</option>`).join('');
-  if(filtered.length > 0) sel.selectedIndex = 0;
-  count.textContent = filtered.length + ' CHARGE' + (filtered.length !== 1 ? 'S' : '') + ' LISTED' + (q ? ' (FILTERED)' : '');
-  count.style.color = q && filtered.length === 0 ? 'var(--red)' : 'var(--text-dim)';
-  if(filtered.length === 0) sel.innerHTML = '<option value="" disabled>— NO MATCHES —</option>';
 }
 
 function submitCite(){
@@ -2208,11 +2376,39 @@ document.addEventListener('keydown', function(e){
     background: var(--bg-panel);
     border: 1px solid var(--border-lit);
     border-top: 3px solid var(--accent);
-    width: 520px;
-    max-width: 95vw;
-    max-height: 85vh;
+    width: 640px;
+    max-width: 97vw;
+    max-height: 90vh;
     overflow-y: auto;
     border-radius: 2px;
+  }
+  /* charge list select fix */
+  .charge-list {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border-lit);
+    color: var(--text-pri);
+    font-family: var(--mono);
+    font-size: 11px;
+    border-radius: 2px;
+    outline: none;
+    height: 160px;
+    cursor: pointer;
+  }
+  .charge-list:focus { border-color: var(--accent); }
+  .charge-list option {
+    padding: 5px 8px;
+    color: var(--text-pri);
+    background: var(--bg-card);
+  }
+  .charge-list option:checked { background: var(--accent); color: #fff; }
+  .charge-list optgroup {
+    color: var(--yellow);
+    font-size: 10px;
+    letter-spacing: 1px;
+    background: #080d12;
+    font-style: normal;
+    font-weight: 700;
   }
   .modal.danger-border { border-top-color: var(--red); }
   .modal-head {
@@ -2559,131 +2755,249 @@ document.addEventListener('keydown', function(e){
 <script>
 /* ─── DATA ─────────────────────────────────────────────── */
 
-const CRIMES = [
-  // Violent
-  "18 PA C.S. § 2502(a) — Murder in the First Degree",
-  "18 PA C.S. § 2502(b) — Murder in the Second Degree",
-  "18 PA C.S. § 2502(c) — Murder in the Third Degree",
-  "18 PA C.S. § 2503 — Voluntary Manslaughter",
-  "18 PA C.S. § 2504 — Involuntary Manslaughter",
-  "18 PA C.S. § 2701 — Simple Assault",
-  "18 PA C.S. § 2702 — Aggravated Assault",
-  "18 PA C.S. § 2706 — Terroristic Threats",
-  "18 PA C.S. § 2709 — Harassment",
-  "18 PA C.S. § 2709.1 — Stalking",
-  "18 PA C.S. § 2711 — Probable Cause — Domestic",
-  "18 PA C.S. § 2718 — Strangulation",
-  "18 PA C.S. § 2901 — Kidnapping",
-  "18 PA C.S. § 2902 — Unlawful Restraint",
-  "18 PA C.S. § 2903 — False Imprisonment",
-  "18 PA C.S. § 3121 — Rape",
-  "18 PA C.S. § 3122.1 — Statutory Sexual Assault",
-  "18 PA C.S. § 3123 — Involuntary Deviate Sexual Intercourse",
-  "18 PA C.S. § 3124.1 — Sexual Assault",
-  "18 PA C.S. § 3126 — Indecent Assault",
-  "18 PA C.S. § 3127 — Indecent Exposure",
-  "18 PA C.S. § 3131 — Unlawful Dissemination of Intimate Image",
-  // Property
-  "18 PA C.S. § 3301 — Arson",
-  "18 PA C.S. § 3304 — Criminal Mischief",
-  "18 PA C.S. § 3311 — Ecoterrorism",
-  "18 PA C.S. § 3501 — Robbery",
-  "18 PA C.S. § 3502 — Burglary",
-  "18 PA C.S. § 3503 — Criminal Trespass",
-  "18 PA C.S. § 3701 — Robbery",
-  "18 PA C.S. § 3702 — Robbery of Motor Vehicle",
-  "18 PA C.S. § 3921 — Theft by Unlawful Taking",
-  "18 PA C.S. § 3922 — Theft by Deception",
-  "18 PA C.S. § 3925 — Receiving Stolen Property",
-  "18 PA C.S. § 3928 — Unauthorized Use of Automobile",
-  "18 PA C.S. § 3929 — Retail Theft",
-  "18 PA C.S. § 3932 — Theft of Trade Secrets",
-  "18 PA C.S. § 3934 — Theft from Motor Vehicle",
-  // Drugs
-  "35 P.S. § 780-113(a)(30) — PWID Schedule I/II Controlled Substance",
-  "35 P.S. § 780-113(a)(16) — Possession of Controlled Substance",
-  "35 P.S. § 780-113(a)(12) — Acquisition by Fraud",
-  "35 P.S. § 780-113(a)(32) — Delivery of Controlled Substance to Minor",
-  "35 P.S. § 780-113(a)(19) — Manufacture / Delivery — Schedule II",
-  "18 PA C.S. § 7508 — Drug Trafficking Sentencing & Penalties",
-  "35 P.S. § 780-113(a)(31) — PWID — Marijuana",
-  // Weapons
-  "18 PA C.S. § 6105 — Persons Not to Possess Firearms",
-  "18 PA C.S. § 6106 — Firearms Not to Be Carried w/o License",
-  "18 PA C.S. § 6108 — Carrying Firearms on Public Streets",
-  "18 PA C.S. § 6110.1 — Possession of Firearm by Minor",
-  "18 PA C.S. § 6111 — Sale or Transfer of Firearms",
-  "18 PA C.S. § 6301 — Corruption of Minors",
-  "18 PA C.S. § 908 — Prohibited Offensive Weapons",
-  "18 PA C.S. § 912 — Possession of Weapon on School Property",
-  // DUI / Traffic
-  "75 PA C.S. § 3802(a)(1) — DUI — General Impairment",
-  "75 PA C.S. § 3802(b) — DUI — High BAC (.10-.159)",
-  "75 PA C.S. § 3802(c) — DUI — Highest BAC (.16+)",
-  "75 PA C.S. § 3802(d) — DUI — Controlled Substance",
-  "75 PA C.S. § 3732 — Aggravated Assault by Vehicle",
-  "75 PA C.S. § 3735 — Homicide by Vehicle While DUI",
-  "75 PA C.S. § 3742 — Accidents Involving Death or Personal Injury",
-  "75 PA C.S. § 3301 — Driving on Right Side of Roadway",
-  "75 PA C.S. § 3361 — Driving Vehicle at Safe Speed",
-  "75 PA C.S. § 3362 — Maximum Speed Limits",
-  "75 PA C.S. § 3714 — Careless Driving",
-  "75 PA C.S. § 3736 — Reckless Driving",
-  "75 PA C.S. § 3341 — Duty to Stop for Traffic-Control Signals",
-  "75 PA C.S. § 4303 — Required Lamps",
-  "75 PA C.S. § 1786 — Required Financial Responsibility",
-  "75 PA C.S. § 1501 — Driving While Operating Privilege is Suspended",
-  "75 PA C.S. § 1543(b) — DUS — DUI Related",
-  "75 PA C.S. § 3345 — Failure to Stop for School Bus",
-  // Fraud / Financial
-  "18 PA C.S. § 4101 — Forgery",
-  "18 PA C.S. § 4106 — Access Device Fraud",
-  "18 PA C.S. § 4107 — Deceptive Business Practices",
-  "18 PA C.S. § 4111 — Stealing or Receiving Stolen Credit Cards",
-  "18 PA C.S. § 4120 — Identity Theft",
-  "18 PA C.S. § 4130 — False Identification to Law Enforcement",
-  "18 PA C.S. § 4904 — Unsworn Falsification to Authorities",
-  "18 PA C.S. § 4906 — False Reports to Law Enforcement",
-  "18 PA C.S. § 4114 — Securing Execution of Documents by Deception",
-  // Public Order
-  "18 PA C.S. § 5101 — Obstruction of Justice",
-  "18 PA C.S. § 5102 — Perjury",
-  "18 PA C.S. § 5104 — Resisting Arrest or Other Law Enforcement",
-  "18 PA C.S. § 5105 — Hindering Apprehension or Prosecution",
-  "18 PA C.S. § 5106 — Failure to Report Injuries",
-  "18 PA C.S. § 5107 — Aiding Consummation of Crime",
-  "18 PA C.S. § 5108 — Compounding",
-  "18 PA C.S. § 5110 — Escape",
-  "18 PA C.S. § 5121 — Escape",
-  "18 PA C.S. § 5122 — Weapons or Implements for Escape",
-  "18 PA C.S. § 5501 — Riot",
-  "18 PA C.S. § 5502 — Failure of Disorderly Persons to Disperse",
-  "18 PA C.S. § 5503 — Disorderly Conduct",
-  "18 PA C.S. § 5505 — Public Drunkenness",
-  "18 PA C.S. § 5507 — Obstructing Highways",
-  "18 PA C.S. § 5510 — Loitering and Prowling at Night",
-  "18 PA C.S. § 6308 — Purchase, Consumption, or Possession of Liquor — Minor",
-  // Cyber / Other
-  "18 PA C.S. § 7601 — Computer Offenses",
-  "18 PA C.S. § 7603 — Unlawful Use of Computer",
-  "18 PA C.S. § 7611 — Unlawful Duplication",
-  "18 PA C.S. § 7612 — Criminal Invasion of Computer Privacy",
-  "18 PA C.S. § 7614 — Distribution of Computer Virus",
-  "18 PA C.S. § 3930 — Theft of Intellectual Property",
-  "18 PA C.S. § 4952 — Intimidation of Witnesses or Victims",
-  "18 PA C.S. § 4953 — Retaliation Against Witness",
-  "18 PA C.S. § 2705 — Recklessly Endangering Another Person",
-  "18 PA C.S. § 5902 — Prostitution and Related Offenses",
-  "18 PA C.S. § 5903 — Obscene and Other Sexual Materials",
-  "18 PA C.S. § 5904 — Public Exhibition of Films",
-  "18 PA C.S. § 6312 — Sexual Abuse of Children — Production",
-  "18 PA C.S. § 6318 — Unlawful Contact with Minor",
-  "18 PA C.S. § 6320 — Sexual Exploitation of Children",
-  "18 PA C.S. § 2803 — Causing or Risking Catastrophe",
-  "18 PA C.S. § 5511 — Cruelty to Animals",
-  "18 PA C.S. § 4902 — Perjury",
-  "18 PA C.S. § 4910 — Tampering with / Fabricating Physical Evidence",
+const CRIME_CATEGORIES = [
+  {
+    label: "🚗  TRAFFIC — MOVING VIOLATIONS",
+    charges: [
+      "625 ILCS 5/11-601(a) — Speeding (1–20 mph over limit)",
+      "625 ILCS 5/11-601(b) — Speeding (21–30 mph over limit)",
+      "625 ILCS 5/11-601(c) — Speeding (31+ mph over limit — Aggravated)",
+      "625 ILCS 5/11-601.5 — Speeding in School Zone",
+      "625 ILCS 5/11-601.5(b) — Aggravated Speeding in School Zone",
+      "625 ILCS 5/11-503(a) — Reckless Driving",
+      "625 ILCS 5/11-503(b) — Aggravated Reckless Driving",
+      "625 ILCS 5/11-402 — Failure to Reduce Speed to Avoid Accident",
+      "625 ILCS 5/11-305 — Failure to Obey Traffic Control Signal",
+      "625 ILCS 5/11-306 — Failure to Obey Stop Sign",
+      "625 ILCS 5/11-307 — Failure to Yield — Right of Way",
+      "625 ILCS 5/11-904 — Failure to Yield to Emergency Vehicle",
+      "625 ILCS 5/11-1002 — Failure to Stop for School Bus",
+      "625 ILCS 5/11-709 — Improper Lane Usage",
+      "625 ILCS 5/11-706 — Improper Passing",
+      "625 ILCS 5/11-802 — Improper Turn / Failure to Signal",
+      "625 ILCS 5/11-804 — Illegal U-Turn",
+      "625 ILCS 5/11-1301 — Illegal Parking",
+      "625 ILCS 5/11-1302 — Parking in Fire Lane",
+      "625 ILCS 5/11-1303 — Parking in Handicap Zone w/o Placard",
+      "625 ILCS 5/11-1414 — Following Too Closely (Tailgating)",
+      "625 ILCS 5/11-1003 — Improper Passing of School Bus",
+      "625 ILCS 5/11-502 — Street Racing / Drag Racing",
+      "625 ILCS 5/11-703 — Wrong Way / Wrong Side of Road",
+      "625 ILCS 5/11-205.1 — Using Mobile Device While Driving",
+      "625 ILCS 5/11-501.1 — Texting While Driving",
+    ]
+  },
+  {
+    label: "🪪  TRAFFIC — LICENSE & REGISTRATION",
+    charges: [
+      "625 ILCS 5/6-101 — Driving Without a Valid Driver's License",
+      "625 ILCS 5/6-303 — Driving While License Suspended or Revoked",
+      "625 ILCS 5/6-303(d) — Aggravated DWS — DUI Related",
+      "625 ILCS 5/6-304 — Driving Without Classification / Endorsement",
+      "625 ILCS 5/6-104 — Expired Driver's License",
+      "625 ILCS 5/6-105 — Unlicensed Driver — No Valid License Ever Issued",
+      "625 ILCS 5/3-701 — Expired Vehicle Registration",
+      "625 ILCS 5/3-702 — Operating Unregistered Vehicle",
+      "625 ILCS 5/3-703 — Improper / Fictitious Registration",
+      "625 ILCS 5/3-413 — Improper Display of License Plates",
+      "625 ILCS 5/3-415 — Obstructed / Illegible License Plate",
+      "625 ILCS 5/6-112 — Failure to Carry / Present Driver's License",
+      "625 ILCS 5/3-601 — Failure to Transfer Title",
+      "625 ILCS 5/7-601 — No Proof of Insurance (Financial Responsibility)",
+      "625 ILCS 5/7-602 — Expired Insurance / Insurance Not in Force",
+      "625 ILCS 5/7-603 — False Proof of Insurance",
+      "625 ILCS 5/3-816 — Expired Vehicle Safety Inspection Sticker",
+      "625 ILCS 5/12-601 — Required Equipment — No Headlights",
+      "625 ILCS 5/12-602 — Defective Headlights / Taillights",
+      "625 ILCS 5/12-611 — Broken / No Brake Lights",
+      "625 ILCS 5/12-503 — Obstructed Windshield / Illegal Tint",
+      "625 ILCS 5/12-610.2 — Improper Use of Electronic Device",
+    ]
+  },
+  {
+    label: "🍺  TRAFFIC — DUI / ALCOHOL",
+    charges: [
+      "625 ILCS 5/11-501(a)(1) — DUI — BAC .08 or More",
+      "625 ILCS 5/11-501(a)(2) — DUI — Under Influence of Alcohol",
+      "625 ILCS 5/11-501(a)(3) — DUI — Under Influence of Drugs",
+      "625 ILCS 5/11-501(a)(4) — DUI — Under Influence of Intoxicating Compound",
+      "625 ILCS 5/11-501(a)(6) — DUI — BAC .16 or More (Aggravated)",
+      "625 ILCS 5/11-501(d)(1)(A) — Aggravated DUI — Great Bodily Harm",
+      "625 ILCS 5/11-501(d)(1)(C) — Aggravated DUI — Child Passenger Under 16",
+      "625 ILCS 5/11-501(d)(1)(D) — Aggravated DUI — No Valid License",
+      "625 ILCS 5/11-501(d)(1)(F) — Aggravated DUI — School Bus Zone",
+      "625 ILCS 5/11-501(d)(2) — Aggravated DUI — Causing Death",
+      "625 ILCS 5/11-501.2 — Refusal to Submit to Chemical Test",
+      "625 ILCS 5/11-401 — Leaving Scene of Accident Involving Injury",
+      "625 ILCS 5/11-403 — Leaving Scene of Accident — Property Damage",
+      "625 ILCS 5/11-404 — Duty to Report Accident",
+    ]
+  },
+  {
+    label: "🔫  VIOLENT CRIMES",
+    charges: [
+      "720 ILCS 5/9-1 — First Degree Murder",
+      "720 ILCS 5/9-2 — Second Degree Murder",
+      "720 ILCS 5/9-3 — Involuntary Manslaughter",
+      "720 ILCS 5/9-3.2 — Involuntary Manslaughter — Motor Vehicle",
+      "720 ILCS 5/12-3 — Simple Battery",
+      "720 ILCS 5/12-3.05 — Aggravated Battery",
+      "720 ILCS 5/12-3.05(e)(1) — Aggravated Battery — Firearm",
+      "720 ILCS 5/12-3.2 — Domestic Battery",
+      "720 ILCS 5/12-3.3 — Aggravated Domestic Battery",
+      "720 ILCS 5/12-1 — Assault",
+      "720 ILCS 5/12-2 — Aggravated Assault",
+      "720 ILCS 5/12-6 — Intimidation",
+      "720 ILCS 5/12-6.2 — Aggravated Intimidation",
+      "720 ILCS 5/12-7.3 — Stalking",
+      "720 ILCS 5/12-7.4 — Aggravated Stalking",
+      "720 ILCS 5/12-7.5 — Cyberstalking",
+      "720 ILCS 5/10-1 — Kidnapping",
+      "720 ILCS 5/10-2 — Aggravated Kidnapping",
+      "720 ILCS 5/10-3 — Unlawful Restraint",
+      "720 ILCS 5/10-3.1 — Aggravated Unlawful Restraint",
+      "720 ILCS 5/12-3.4 — Strangulation",
+      "720 ILCS 5/12-7.1 — Hate Crime",
+    ]
+  },
+  {
+    label: "🏠  PROPERTY CRIMES",
+    charges: [
+      "720 ILCS 5/19-1 — Burglary",
+      "720 ILCS 5/19-3 — Residential Burglary",
+      "720 ILCS 5/19-4 — Criminal Trespass to Residence",
+      "720 ILCS 5/21-3 — Criminal Trespass to Land / Vehicle",
+      "720 ILCS 5/18-1 — Robbery",
+      "720 ILCS 5/18-2 — Armed Robbery",
+      "720 ILCS 5/18-3 — Vehicular Hijacking",
+      "720 ILCS 5/18-4 — Aggravated Vehicular Hijacking",
+      "720 ILCS 5/16-1 — Theft (Under $500)",
+      "720 ILCS 5/16-1 — Theft ($500–$10,000 — Class 3 Felony)",
+      "720 ILCS 5/16-1 — Theft (Over $10,000 — Class 2 Felony)",
+      "720 ILCS 5/16-1(a)(4) — Theft — Deceptive Practices",
+      "720 ILCS 5/16-1.1 — Retail Theft (Under $300)",
+      "720 ILCS 5/16-1.1 — Retail Theft ($300+ — Felony)",
+      "720 ILCS 5/16D-3 — Computer Fraud / Theft",
+      "720 ILCS 5/4-103 — Motor Vehicle Theft",
+      "720 ILCS 5/4-103.2 — Aggravated Motor Vehicle Theft",
+      "720 ILCS 5/21-1 — Criminal Damage to Property",
+      "720 ILCS 5/21-1.01 — Criminal Damage to Government Property",
+      "720 ILCS 5/20-1 — Arson",
+      "720 ILCS 5/20-1.1 — Aggravated Arson",
+      "720 ILCS 5/20-1.2 — Residential Arson",
+      "720 ILCS 5/16-30 — Financial Identity Theft",
+    ]
+  },
+  {
+    label: "💊  DRUG OFFENSES",
+    charges: [
+      "720 ILCS 570/402(c) — Possession of Controlled Substance — Class 4",
+      "720 ILCS 570/402(b) — Possession of Controlled Substance — Class 3",
+      "720 ILCS 570/402(a) — Possession of Controlled Substance — Class 1",
+      "720 ILCS 550/4(a) — Possession of Cannabis (Under 10g — Civil)",
+      "720 ILCS 550/4(b) — Possession of Cannabis (10–30g)",
+      "720 ILCS 550/4(d) — Possession of Cannabis (Over 100g — Felony)",
+      "720 ILCS 570/401(c) — Delivery / Manufacture — Schedule III/IV",
+      "720 ILCS 570/401(b) — Manufacture / Delivery — Schedule I/II",
+      "720 ILCS 570/401(a)(1)(A) — Drug Trafficking — Heroin (15g+)",
+      "720 ILCS 570/401(a)(2)(A) — Drug Trafficking — Cocaine (15g+)",
+      "720 ILCS 570/401(a)(7)(A) — Drug Trafficking — Fentanyl",
+      "720 ILCS 570/407 — Delivery to Person Under 18",
+      "720 ILCS 570/404 — Delivery Within 1,000 ft of School / Church",
+      "720 ILCS 570/405 — Drug-Induced Homicide",
+      "720 ILCS 570/406.2 — Possession of Drug Paraphernalia",
+      "720 ILCS 646/55 — Methamphetamine Possession",
+      "720 ILCS 646/60 — Methamphetamine Manufacture",
+    ]
+  },
+  {
+    label: "🔧  WEAPONS OFFENSES",
+    charges: [
+      "720 ILCS 5/24-1 — Unlawful Use of Weapons",
+      "720 ILCS 5/24-1.1 — Unlawful Use or Possession of Weapons by Felon",
+      "720 ILCS 5/24-1.2 — Aggravated Discharge of a Firearm",
+      "720 ILCS 5/24-1.5 — Reckless Discharge of a Firearm",
+      "720 ILCS 5/24-1.6 — Aggravated Unlawful Use of a Weapon (AUUW)",
+      "720 ILCS 5/24-1.7 — Armed Habitual Criminal",
+      "720 ILCS 5/24-2.5 — Possession of Firearm — No FOID Card",
+      "720 ILCS 5/24-3 — Unlawful Sale / Transfer of Firearms",
+      "720 ILCS 5/24-3A — Straw Purchase of Firearm",
+      "720 ILCS 5/24-4 — Firearms Carried in Vehicle — Unlawful",
+      "720 ILCS 5/24-9 — Firearm Stored Without Trigger Lock / Safe",
+      "720 ILCS 5/26-1 — Disorderly Conduct w/ Firearm",
+      "720 ILCS 5/24-1(a)(7)(i) — Concealed Carry — No FCCL",
+    ]
+  },
+  {
+    label: "🚨  PUBLIC ORDER / OBSTRUCTION",
+    charges: [
+      "720 ILCS 5/31-1 — Resisting or Obstructing a Peace Officer",
+      "720 ILCS 5/31-1a — Obstructing Justice",
+      "720 ILCS 5/31-4 — Obstructing Justice — Evidence",
+      "720 ILCS 5/31-6 — Escape",
+      "720 ILCS 5/31-7 — Aiding Escape",
+      "720 ILCS 5/32-2 — Perjury",
+      "720 ILCS 5/32-4 — Intimidation of Witness",
+      "720 ILCS 5/32-4a — Harassing Witness",
+      "720 ILCS 5/32-8 — Tampering with Evidence",
+      "720 ILCS 5/32-10 — Violation of Bail Bond",
+      "720 ILCS 5/25-1 — Mob Action",
+      "720 ILCS 5/26-1 — Disorderly Conduct",
+      "720 ILCS 5/26-6 — Spreading False Reports of Bomb / Hazard",
+      "720 ILCS 5/26.5-1 — Cyberbullying",
+      "720 ILCS 5/12-6.3 — Threatening a Public Official",
+    ]
+  },
+  {
+    label: "💳  FRAUD / FINANCIAL CRIMES",
+    charges: [
+      "720 ILCS 5/17-1 — Deceptive Practices / Fraud",
+      "720 ILCS 5/17-3 — Forgery",
+      "720 ILCS 5/16-16 — Theft by Lessee",
+      "720 ILCS 5/17-5 — Credit Card Fraud",
+      "720 ILCS 5/17-8 — Fraud on Governmental Entity",
+      "720 ILCS 5/17-10.5 — Mail Fraud / Wire Fraud",
+      "720 ILCS 5/16-30 — Financial Identity Theft (Under $300)",
+      "720 ILCS 5/16-30(b) — Aggravated Identity Theft ($300+)",
+      "720 ILCS 5/17-1(B)(a) — Check Fraud — Insufficient Funds",
+      "720 ILCS 5/26-3 — Interference with Emergency Communication",
+      "720 ILCS 5/17-51 — Telecommunications Fraud",
+      "720 ILCS 5/17-56 — Computer Tampering",
+    ]
+  },
+  {
+    label: "🧒  JUVENILE / FAMILY",
+    charges: [
+      "720 ILCS 5/11-6 — Indecent Solicitation of a Child",
+      "720 ILCS 5/11-6.5 — Indecent Solicitation of an Adult",
+      "720 ILCS 5/11-9.1 — Sexual Exploitation of a Child",
+      "720 ILCS 5/11-20.1 — Child Pornography — Production",
+      "720 ILCS 5/11-20.1B — Child Pornography — Possession",
+      "720 ILCS 5/12C-5 — Child Endangerment",
+      "720 ILCS 5/12C-10 — Contributing to Delinquency of Minor",
+      "720 ILCS 5/12-21.5 — Abandonment / Endangerment of Child",
+      "720 ILCS 5/12-3.3 — Abuse / Neglect of Elderly or Disabled",
+      "720 ILCS 5/12-30 — Violation of Order of Protection",
+      "720 ILCS 5/12-3.5 — Interfering with Reporting of Domestic Violence",
+    ]
+  },
+  {
+    label: "🔇  ALCOHOL / VICE",
+    charges: [
+      "235 ILCS 5/6-20 — Sale of Alcohol to Minor",
+      "235 ILCS 5/6-20(a) — Purchase / Possession of Alcohol by Minor",
+      "720 ILCS 5/11-14 — Prostitution",
+      "720 ILCS 5/11-14.3 — Promoting Prostitution",
+      "720 ILCS 5/28-1 — Gambling",
+      "720 ILCS 5/28-3 — Keeping a Gambling Place",
+      "720 ILCS 5/5/26-5 — Public Indecency",
+      "720 ILCS 5/5-8 — Public Intoxication / Disorderly Conduct",
+    ]
+  },
 ];
+
+// Flat list for backward compatibility (random picks, etc.)
+const CRIMES = CRIME_CATEGORIES.flatMap(cat => cat.charges);
 
 const WARRANT_TYPES = ["Arrest Warrant", "Bench Warrant", "Search Warrant", "Failure to Appear", "Extradition Warrant", "Civil Warrant"];
 const DISPOSITIONS = ["GUILTY PLEA", "CONVICTED", "NOLLE PROSEQUI", "ACQUITTED", "ARD PROGRAM", "PROBATION", "DISMISSED", "PENDING TRIAL"];
@@ -3023,7 +3337,7 @@ function openWarrantModal(subjectPrefill=''){
 function openWarrantModalFor(name){ openWarrantModal(name); }
 
 function buildWarrantForm(subjectPrefill=''){
-  const crimeOpts = CRIMES.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const { html: chargeHTML, totalShown } = buildChargeOptgroups('');
   const wTypeOpts = WARRANT_TYPES.map(w=>`<option>${w}</option>`).join('');
   return `
     <div class="form-row">
@@ -3036,12 +3350,10 @@ function buildWarrantForm(subjectPrefill=''){
     </div>
     <div class="form-row">
       <div class="form-col" style="width:100%">
-        <label>CHARGE(S) — SEARCH OR SCROLL</label>
-        <input class="mdt-input" id="w-charge-search" style="width:100%;margin-bottom:5px;" placeholder="Type to search... e.g. murder, robbery, DUI, assault" oninput="filterWarrantCharges(this.value)">
-        <div style="position:relative;">
-          <select id="w-charge" size="5" style="width:100%;background:var(--bg-card);border:1px solid var(--border-lit);color:var(--text-pri);font-family:var(--mono);font-size:11px;padding:4px;border-radius:2px;outline:none;">${crimeOpts}</select>
-          <div id="w-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:3px;letter-spacing:1px;">${CRIMES.length} CHARGES LISTED</div>
-        </div>
+        <label>CHARGE(S) — SEARCH OR SCROLL BY CATEGORY</label>
+        <input class="mdt-input" id="w-charge-search" style="width:100%;margin-bottom:6px;" placeholder='Search: "murder" "robbery" "DUI" "assault" "weapon"…' oninput="filterWarrantCharges(this.value)">
+        <select id="w-charge" class="charge-list">${chargeHTML}</select>
+        <div id="w-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:4px;letter-spacing:1px;">${totalShown} CHARGES TOTAL ACROSS ALL CATEGORIES</div>
       </div>
     </div>
     <div class="form-row">
@@ -3056,13 +3368,12 @@ function filterWarrantCharges(query){
   const sel = document.getElementById('w-charge');
   const count = document.getElementById('w-charge-count');
   if(!sel) return;
-  const q = query.trim().toLowerCase();
-  const filtered = q ? CRIMES.filter(c => c.toLowerCase().includes(q)) : CRIMES;
-  sel.innerHTML = filtered.map(c=>`<option value="${c}">${c}</option>`).join('');
-  if(filtered.length > 0) sel.selectedIndex = 0;
-  count.textContent = filtered.length + ' CHARGE' + (filtered.length !== 1 ? 'S' : '') + ' LISTED' + (q ? ' (FILTERED)' : '');
-  count.style.color = q && filtered.length === 0 ? 'var(--red)' : 'var(--text-dim)';
-  if(filtered.length === 0) sel.innerHTML = '<option value="" disabled>— NO MATCHES —</option>';
+  const { html, totalShown } = buildChargeOptgroups(query);
+  sel.innerHTML = html;
+  if(totalShown > 0) sel.selectedIndex = 0;
+  const q = query.trim();
+  count.textContent = totalShown + ' CHARGE' + (totalShown !== 1 ? 'S' : '') + (q ? ` MATCHING "${q.toUpperCase()}"` : ' TOTAL ACROSS ALL CATEGORIES');
+  count.style.color = q && totalShown === 0 ? 'var(--red)' : 'var(--text-dim)';
 }
 
 function submitWarrant(){
@@ -3110,8 +3421,48 @@ function openCiteModal(subjectPrefill=''){
 }
 function openCiteModalFor(name){ openCiteModal(name); }
 
+function buildChargeOptgroups(filterQ){
+  const q = filterQ ? filterQ.trim().toLowerCase() : '';
+  let html = '';
+  let totalShown = 0;
+  CRIME_CATEGORIES.forEach(cat => {
+    const matches = q ? cat.charges.filter(c => c.toLowerCase().includes(q)) : cat.charges;
+    if(matches.length === 0) return;
+    totalShown += matches.length;
+    html += `<optgroup label="${cat.label}">`;
+    matches.forEach(c => { html += `<option value="${c}">${c}</option>`; });
+    html += `</optgroup>`;
+  });
+  if(!html) html = `<option value="" disabled>— NO MATCHES FOR "${filterQ}" —</option>`;
+  return { html, totalShown };
+}
+
+function filterCiteCharges(query){
+  const sel = document.getElementById('c-charge');
+  const count = document.getElementById('c-charge-count');
+  if(!sel) return;
+  const { html, totalShown } = buildChargeOptgroups(query);
+  sel.innerHTML = html;
+  if(totalShown > 0) sel.selectedIndex = 0;
+  const q = query.trim();
+  count.textContent = totalShown + ' CHARGE' + (totalShown !== 1 ? 'S' : '') + (q ? ` MATCHING "${q.toUpperCase()}"` : ' TOTAL ACROSS ALL CATEGORIES');
+  count.style.color = q && totalShown === 0 ? 'var(--red)' : 'var(--text-dim)';
+}
+
+function filterWarrantCharges(query){
+  const sel = document.getElementById('w-charge');
+  const count = document.getElementById('w-charge-count');
+  if(!sel) return;
+  const { html, totalShown } = buildChargeOptgroups(query);
+  sel.innerHTML = html;
+  if(totalShown > 0) sel.selectedIndex = 0;
+  const q = query.trim();
+  count.textContent = totalShown + ' CHARGE' + (totalShown !== 1 ? 'S' : '') + (q ? ` MATCHING "${q.toUpperCase()}"` : ' TOTAL ACROSS ALL CATEGORIES');
+  count.style.color = q && totalShown === 0 ? 'var(--red)' : 'var(--text-dim)';
+}
+
 function buildCiteForm(subjectPrefill=''){
-  const crimeOpts = CRIMES.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const { html: chargeHTML, totalShown } = buildChargeOptgroups('');
   return `
     <div class="form-row">
       <div class="form-col" style="flex:1"><label>SUBJECT NAME</label><input class="mdt-input" id="c-subject" style="width:100%" value="${subjectPrefill}" placeholder="LAST, FIRST"></div>
@@ -3124,12 +3475,10 @@ function buildCiteForm(subjectPrefill=''){
     </div>
     <div class="form-row">
       <div class="form-col" style="width:100%">
-        <label>VIOLATION / CHARGE — SEARCH OR SCROLL</label>
-        <input class="mdt-input" id="c-charge-search" style="width:100%;margin-bottom:5px;" placeholder="Type to search... e.g. insurance, DUI, theft, assault" oninput="filterCiteCharges(this.value)">
-        <div style="position:relative;">
-          <select id="c-charge" size="5" style="width:100%;background:var(--bg-card);border:1px solid var(--border-lit);color:var(--text-pri);font-family:var(--mono);font-size:11px;padding:4px;border-radius:2px;outline:none;">${crimeOpts}</select>
-          <div id="c-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:3px;letter-spacing:1px;">${CRIMES.length} CHARGES LISTED</div>
-        </div>
+        <label>VIOLATION / CHARGE — SEARCH OR SCROLL BY CATEGORY</label>
+        <input class="mdt-input" id="c-charge-search" style="width:100%;margin-bottom:6px;" placeholder='Search: "insurance" "DUI" "speeding" "assault" "theft"…' oninput="filterCiteCharges(this.value)">
+        <select id="c-charge" class="charge-list">${chargeHTML}</select>
+        <div id="c-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:4px;letter-spacing:1px;">${totalShown} CHARGES TOTAL ACROSS ALL CATEGORIES</div>
       </div>
     </div>
     <div class="form-row">
@@ -3140,19 +3489,6 @@ function buildCiteForm(subjectPrefill=''){
     <div class="form-row">
       <div class="form-col" style="width:100%"><label>OFFICER NOTES</label><textarea id="c-notes" placeholder="Additional notes..."></textarea></div>
     </div>`;
-}
-
-function filterCiteCharges(query){
-  const sel = document.getElementById('c-charge');
-  const count = document.getElementById('c-charge-count');
-  if(!sel) return;
-  const q = query.trim().toLowerCase();
-  const filtered = q ? CRIMES.filter(c => c.toLowerCase().includes(q)) : CRIMES;
-  sel.innerHTML = filtered.map(c=>`<option value="${c}">${c}</option>`).join('');
-  if(filtered.length > 0) sel.selectedIndex = 0;
-  count.textContent = filtered.length + ' CHARGE' + (filtered.length !== 1 ? 'S' : '') + ' LISTED' + (q ? ' (FILTERED)' : '');
-  count.style.color = q && filtered.length === 0 ? 'var(--red)' : 'var(--text-dim)';
-  if(filtered.length === 0) sel.innerHTML = '<option value="" disabled>— NO MATCHES —</option>';
 }
 
 function submitCite(){
