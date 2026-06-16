@@ -661,6 +661,26 @@
   }
   #sys-banner span { color: var(--text-dim); }
   #sys-banner b { color: var(--accent); }
+
+  /* scanner */
+  #scanner-overlay { display: none; }
+  #scanner-overlay.visible { display: flex !important; }
+  .scan-call-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--yellow);
+    padding: 8px 12px;
+    border-radius: 2px;
+  }
+  .scan-call-card.top-call { border-left-color: var(--accent); border-color: var(--border-lit); }
+  .scan-call-card .scc-type { font-family:var(--sans); font-size:13px; font-weight:700; color:var(--text-head); }
+  .scan-call-card .scc-detail { font-family:var(--mono); font-size:10px; color:var(--text-sec); margin-top:2px; }
+  .db-result-row { display:grid; grid-template-columns:140px 1fr; gap:4px 12px; margin-bottom:4px; font-family:var(--mono); font-size:11px; }
+  .db-result-row .drk { color:var(--text-dim); font-size:9px; letter-spacing:1px; text-transform:uppercase; align-self:center; }
+  .db-result-row .drv { color:var(--text-pri); }
+  .db-result-row .drv.hit { color:var(--red); font-weight:700; }
+  .db-result-row .drv.clear { color:var(--green); }
+
 </style>
 </head>
 <body>
@@ -707,6 +727,17 @@
     </div>
     <div class="nav-item" data-pane="pane-cites" onclick="switchPane(this)">
       <span class="ni">🗒</span> Citations / Tickets
+    </div>
+    <hr class="nav-divider">
+    <div class="nav-section-label">🎮 Game Scanner</div>
+    <div class="nav-item" id="nav-watch-screen" onclick="toggleWatcher()" style="border-left:3px solid transparent;">
+      <span class="ni">📺</span> <span id="watch-btn-txt">Watch Game Screen</span>
+    </div>
+    <div class="nav-item" id="nav-scan-db" onclick="scanDatabase()" style="opacity:.5;pointer-events:none;">
+      <span class="ni">🔎</span> Scan DB / Plate
+    </div>
+    <div class="nav-item" id="nav-screen-indicator" style="cursor:default;">
+      <span class="ni">⬤</span> <span id="screen-status-txt" style="font-size:10px;color:var(--text-dim);">Not watching</span>
     </div>
     <hr class="nav-divider">
     <div class="nav-section-label">Actions</div>
@@ -877,6 +908,46 @@
           <button id="panic-btn" onclick="triggerPanic()" style="width:100%;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;padding:8px 4px;border:2px solid var(--red);background:rgba(204,34,51,.15);color:var(--red);cursor:pointer;border-radius:2px;margin-top:2px;transition:all .15s;">⚠ PANIC ALARM</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ SCANNER OVERLAY ═══════════════════════════════════ -->
+<div id="scanner-overlay" style="
+  display:none; position:fixed; inset:0; z-index:300;
+  background:rgba(0,0,0,.82); align-items:center; justify-content:center;
+  flex-direction:column; gap:0;
+">
+  <!-- header bar -->
+  <div style="width:680px;max-width:97vw;background:#060a0e;border:1px solid var(--border-lit);border-bottom:none;border-radius:2px 2px 0 0;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
+    <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:2px;" id="scanner-title">GAME SCREEN SCANNER</div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);" id="scanner-mode-label">MODE: —</div>
+    <div style="font-family:var(--mono);font-size:14px;color:var(--text-dim);cursor:pointer;" onclick="closeScanner()">✕</div>
+  </div>
+  <!-- preview strip -->
+  <div style="width:680px;max-width:97vw;background:#080d12;border:1px solid var(--border-lit);border-top:none;border-bottom:none;padding:8px;display:flex;justify-content:center;">
+    <canvas id="scanner-canvas" style="max-width:100%;height:120px;object-fit:contain;border:1px solid var(--border);border-radius:1px;display:block;"></canvas>
+  </div>
+  <!-- body -->
+  <div style="width:680px;max-width:97vw;background:var(--bg-panel);border:1px solid var(--border-lit);border-top:none;border-radius:0 0 2px 2px;padding:14px 16px;min-height:220px;">
+    <div id="scanner-status" style="font-family:var(--mono);font-size:10px;color:var(--text-sec);margin-bottom:10px;letter-spacing:.5px;">Ready.</div>
+    <div id="scanner-result" style="display:none;">
+      <!-- filled by JS -->
+    </div>
+    <!-- CALL QUEUE result -->
+    <div id="scanner-call-result" style="display:none;">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px;">CALLS DETECTED ON SCREEN</div>
+      <div id="scanner-calls-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      <div style="margin-top:12px;font-family:var(--mono);font-size:10px;color:var(--text-dim);">Press <span style="color:var(--yellow);font-weight:700;">Y</span> to respond to top call &nbsp;|&nbsp; <span style="color:var(--red);font-weight:700;">N</span> to dismiss &nbsp;|&nbsp; ESC to close</div>
+    </div>
+    <!-- DB scan result -->
+    <div id="scanner-db-result" style="display:none;">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px;">DATABASE SCAN RESULT</div>
+      <div id="scanner-db-content"></div>
+    </div>
+    <!-- action buttons -->
+    <div id="scanner-actions" style="display:none;margin-top:12px;display:none;gap:8px;flex-wrap:wrap;">
     </div>
   </div>
 </div>
@@ -1425,51 +1496,47 @@ function runVehicleQuery(){
 }
 
 /* ─── CAD CALLS ─────────────────────────────────────────── */
-function generateCalls(n){
-  const calls=[];
-  const priorities = [1,1,2,2,2,3,3,3];
-  for(let i=0;i<n;i++){
-    const pri = rand(priorities);
-    const assigned = Math.random()>.6;
-    calls.push({
-      id: 'CAD'+randInt(10000,99999),
-      type: rand(CALL_TYPES),
-      addr: rand(STREETS),
-      pri,
-      time: padZ(randInt(0,23))+':'+padZ(randInt(0,59)),
-      assigned,
-      unit: assigned ? rand(['219','231','208','254','262','247']) : null,
-    });
-  }
-  return calls;
-}
-
-function renderCAD(){
-  cadCalls = generateCalls(randInt(5,9));
+// Calls come from game screen scanner only
+function renderCAD(calls){
   const q = document.getElementById('cad-queue');
-  q.innerHTML = cadCalls.map(c=>`
-    <div class="call-card priority-${c.pri} ${c.assigned?'assigned':''}" onclick="assignCall('${c.id}')">
+  if(!calls || !calls.length){
+    q.innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);text-align:center;padding:24px 12px;line-height:2;">
+      <div style="font-size:18px;margin-bottom:8px;">📡</div>
+      NO ACTIVE CALLS<br>
+      <span style="font-size:9px;letter-spacing:1px;">USE SCAN CALL QUEUE<br>TO PULL FROM GAME SCREEN</span>
+    </div>`;
+    return;
+  }
+  q.innerHTML = calls.map(c=>`
+    <div class="call-card priority-${c.priority||3}" onclick="respondToCallFromCAD(${JSON.stringify(c).replace(/"/g,'&quot;')})">
       <div class="cc-type">${c.type}</div>
-      <div class="cc-addr">${c.addr}</div>
+      <div class="cc-addr">${c.address||'Unknown Location'}</div>
       <div class="cc-meta">
-        <span class="cc-id">${c.id}</span>
-        <span class="cc-pri pri-${c.pri}">P${c.pri}${c.assigned?' | UNIT '+c.unit:''}</span>
-        <span class="cc-time">${c.time}</span>
+        <span class="cc-id">${c.id||'SCAN'}</span>
+        <span class="cc-pri pri-${c.priority||3}">P${c.priority||'?'}</span>
+        <span class="cc-time">${c.time||''}</span>
       </div>
     </div>`).join('');
 }
 
-function assignCall(id){
+function respondToCallFromCAD(call){
+  incidents.push({
+    id: 'CCSO'+padZ(randInt(1,9999),4)+'-'+new Date().getFullYear(),
+    type: call.type || 'Unknown Call',
+    loc: call.address || 'Unknown Location',
+    subject: 'UNKNOWN',
+    dispo: 'Pending Investigation',
+    date: fmtNow(),
+    officer: 'R. MALLORY #2247'
+  });
+  renderIncidents();
   callsThisShift++;
   document.getElementById('calls-count').textContent = callsThisShift;
-  showToast(`Unit CCSO-247 assigned to call ${id}. Status set to 10-97.`);
-  setTimeout(renderCAD, 800);
+  const btn97 = document.querySelector('.status-btn[data-code="10-97"]');
+  if(btn97) setMyStatus('10-97','ON SCENE',btn97);
+  showToast('CCSO-247 responding: '+call.type+' @ '+(call.address||'location'));
+  renderCAD([]);
 }
-
-renderCAD();
-setInterval(()=>{
-  if(Math.random()>.6) renderCAD();
-}, 18000);
 
 /* ─── WARRANT MODAL ─────────────────────────────────────── */
 function openWarrantModal(subjectPrefill=''){
@@ -1852,1862 +1919,419 @@ document.addEventListener('keydown', function(e){
     triggerPanic();
   }
 });
-</script>
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CJIS MDT — Cook County Sheriff's Office</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Roboto+Condensed:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap');
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg-main:    #0a0c0f;
-    --bg-panel:   #0d1117;
-    --bg-card:    #111820;
-    --bg-hover:   #1a2435;
-    --border:     #1e2d42;
-    --border-lit: #2a4060;
-    --accent:     #1a6fb5;
-    --accent-glow:#0d5a9e;
-    --green:      #1db954;
-    --green-dim:  #0f6b30;
-    --yellow:     #e6b800;
-    --red:        #cc2233;
-    --red-dim:    #7a0f1a;
-    --orange:     #d4721a;
-    --text-pri:   #c8d8e8;
-    --text-sec:   #7a9ab8;
-    --text-dim:   #445566;
-    --text-head:  #e8f0f8;
-    --mono:       'Share Tech Mono', monospace;
-    --sans:       'Roboto Condensed', sans-serif;
-    --body:       'Roboto', sans-serif;
-  }
-
-  html, body {
-    background: var(--bg-main);
-    color: var(--text-pri);
-    font-family: var(--body);
-    font-size: 13px;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  /* ── CHROME BAR ─────────────────────────────── */
-  #chrome {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #060a0e;
-    border-bottom: 2px solid var(--accent);
-    padding: 0 16px;
-    height: 38px;
-    user-select: none;
-  }
-  #chrome .logo {
-    font-family: var(--sans);
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    color: var(--accent);
-    text-transform: uppercase;
-  }
-  #chrome .logo span { color: var(--text-sec); font-weight: 300; margin-left: 6px; font-size: 11px; letter-spacing: 2px; }
-  #clock-block {
-    font-family: var(--mono);
-    font-size: 14px;
-    color: var(--green);
-    text-align: right;
-    line-height: 1.3;
-  }
-  #clock-block .date-str { font-size: 10px; color: var(--text-sec); }
-  .status-pill {
-    display: flex; align-items: center; gap: 6px;
-    font-family: var(--mono); font-size: 10px; color: var(--text-sec);
-    padding: 3px 10px; border: 1px solid var(--border-lit); border-radius: 2px;
-  }
-  .status-pill .dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--green);
-    box-shadow: 0 0 6px var(--green);
-    animation: blink 2.4s ease-in-out infinite;
-  }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-  /* ── LAYOUT ─────────────────────────────────── */
-  #shell {
-    display: grid;
-    grid-template-columns: 200px 1fr 280px;
-    grid-template-rows: calc(100vh - 38px);
-    gap: 0;
-  }
-
-  /* ── NAV SIDEBAR ─────────────────────────────── */
-  #nav {
-    background: var(--bg-panel);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .nav-section-label {
-    font-family: var(--mono);
-    font-size: 9px;
-    color: var(--text-dim);
-    letter-spacing: 2px;
-    padding: 14px 14px 6px;
-    text-transform: uppercase;
-  }
-  .nav-item {
-    display: flex; align-items: center; gap: 9px;
-    padding: 9px 14px;
-    cursor: pointer;
-    font-family: var(--sans);
-    font-size: 12px;
-    font-weight: 400;
-    color: var(--text-sec);
-    border-left: 3px solid transparent;
-    transition: all .15s;
-    white-space: nowrap;
-  }
-  .nav-item:hover { background: var(--bg-hover); color: var(--text-pri); }
-  .nav-item.active {
-    background: rgba(26,111,181,.12);
-    color: var(--accent);
-    border-left-color: var(--accent);
-    font-weight: 700;
-  }
-  .nav-item .ni { font-size: 14px; width: 18px; text-align: center; }
-  .nav-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
-  #unit-badge {
-    margin-top: auto;
-    padding: 12px 14px;
-    border-top: 1px solid var(--border);
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--text-dim);
-    line-height: 1.8;
-  }
-  #unit-badge .ub-unit { color: var(--yellow); font-size: 13px; }
-
-  /* ── MAIN CONTENT ────────────────────────────── */
-  #main {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: var(--bg-main);
-  }
-
-  /* tab bar */
-  #tab-bar {
-    display: flex;
-    background: var(--bg-panel);
-    border-bottom: 1px solid var(--border);
-    padding: 0 12px;
-    gap: 2px;
-    flex-shrink: 0;
-  }
-  .tab {
-    font-family: var(--sans);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .5px;
-    padding: 9px 16px 8px;
-    cursor: pointer;
-    color: var(--text-dim);
-    border-bottom: 2px solid transparent;
-    text-transform: uppercase;
-    transition: all .15s;
-    white-space: nowrap;
-  }
-  .tab:hover { color: var(--text-sec); }
-  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-  /* pane visibility */
-  .pane { display: none; flex: 1; overflow: hidden; flex-direction: column; }
-  .pane.visible { display: flex; }
-
-  /* ── QUERY PANE ──────────────────────────────── */
-  #pane-query {
-    padding: 16px;
-    overflow-y: auto;
-  }
-
-  .section-head {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 12px;
-  }
-
-  .search-row {
-    display: flex; gap: 8px; align-items: flex-end; margin-bottom: 20px;
-  }
-  .field-group { display: flex; flex-direction: column; gap: 4px; }
-  .field-group label {
-    font-family: var(--mono);
-    font-size: 9px;
-    color: var(--text-dim);
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-  }
-  .mdt-input {
-    background: var(--bg-card);
-    border: 1px solid var(--border-lit);
-    color: var(--text-head);
-    font-family: var(--mono);
-    font-size: 13px;
-    padding: 7px 10px;
-    outline: none;
-    transition: border .15s;
-    border-radius: 2px;
-  }
-  .mdt-input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-glow); }
-  .mdt-input::placeholder { color: var(--text-dim); }
-  .mdt-input.wide { width: 240px; }
-  .mdt-input.med  { width: 140px; }
-  .mdt-input.sm   { width: 90px; }
-
-  .mdt-btn {
-    font-family: var(--sans);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    padding: 8px 18px;
-    border: 1px solid var(--accent);
-    background: rgba(26,111,181,.18);
-    color: var(--accent);
-    cursor: pointer;
-    transition: all .15s;
-    border-radius: 2px;
-    white-space: nowrap;
-  }
-  .mdt-btn:hover { background: rgba(26,111,181,.35); color: #fff; }
-  .mdt-btn.danger { border-color: var(--red); background: rgba(204,34,51,.15); color: var(--red); }
-  .mdt-btn.danger:hover { background: rgba(204,34,51,.3); }
-  .mdt-btn.success { border-color: var(--green); background: rgba(29,185,84,.12); color: var(--green); }
-  .mdt-btn.success:hover { background: rgba(29,185,84,.28); }
-  .mdt-btn.warn { border-color: var(--yellow); background: rgba(230,184,0,.1); color: var(--yellow); }
-  .mdt-btn.warn:hover { background: rgba(230,184,0,.25); }
-  .mdt-btn:disabled { opacity: .35; cursor: not-allowed; }
-
-  /* result card */
-  #result-area { display: none; }
-  #result-area.visible { display: block; }
-
-  .result-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-lit);
-    border-top: 3px solid var(--accent);
-    padding: 14px 16px;
-    margin-bottom: 14px;
-    border-radius: 2px;
-  }
-  .result-card.warrant-active { border-top-color: var(--red); }
-  .result-card.clean { border-top-color: var(--green); }
-
-  .rc-header {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    margin-bottom: 12px;
-  }
-  .rc-name {
-    font-family: var(--sans);
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-head);
-    letter-spacing: .5px;
-  }
-  .rc-dob { font-family: var(--mono); font-size: 10px; color: var(--text-sec); margin-top: 2px; }
-
-  .badge-row { display: flex; gap: 6px; flex-wrap: wrap; }
-  .badge {
-    font-family: var(--mono);
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    padding: 3px 8px;
-    border-radius: 2px;
-    text-transform: uppercase;
-  }
-  .badge.warrant  { background: var(--red-dim); color: #ff6677; border: 1px solid var(--red); }
-  .badge.caution  { background: rgba(212,114,26,.15); color: var(--orange); border: 1px solid var(--orange); }
-  .badge.clear    { background: var(--green-dim); color: #55ee88; border: 1px solid var(--green); }
-  .badge.violent  { background: rgba(180,20,20,.25); color: #ff5566; border: 1px solid #aa1122; }
-  .badge.sex-off  { background: rgba(100,0,100,.3); color: #dd88ff; border: 1px solid #8833aa; }
-
-  .rc-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-  .rc-field label {
-    font-family: var(--mono);
-    font-size: 9px;
-    color: var(--text-dim);
-    display: block;
-    letter-spacing: 1.5px;
-    margin-bottom: 3px;
-    text-transform: uppercase;
-  }
-  .rc-field .val {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-pri);
-  }
-
-  /* Prior record table */
-  .rec-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
-  .rec-table th {
-    background: #080d12;
-    color: var(--text-dim);
-    font-size: 9px;
-    letter-spacing: 1.5px;
-    text-align: left;
-    padding: 6px 10px;
-    border-bottom: 1px solid var(--border);
-    text-transform: uppercase;
-    font-weight: 400;
-  }
-  .rec-table td {
-    padding: 7px 10px;
-    border-bottom: 1px solid rgba(30,45,66,.6);
-    color: var(--text-pri);
-    vertical-align: top;
-  }
-  .rec-table tr:hover td { background: var(--bg-hover); }
-  .rec-table td.charge { color: #aac8e0; }
-  .rec-table td.dispo { }
-  .dispo-guilty  { color: var(--red); }
-  .dispo-nolle   { color: var(--yellow); }
-  .dispo-acquit  { color: var(--green); }
-
-  /* Warrant box */
-  .warrant-box {
-    border: 1px solid var(--red);
-    background: rgba(204,34,51,.08);
-    padding: 10px 14px;
-    margin-bottom: 12px;
-    border-radius: 2px;
-  }
-  .warrant-box .wb-head {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--red);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .wb-head::before { content:'⚠'; font-size:12px; }
-  .warrant-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 80px;
-    gap: 8px;
-    margin-bottom: 5px;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-sec);
-    border-bottom: 1px solid rgba(204,34,51,.2);
-    padding-bottom: 5px;
-  }
-  .warrant-row:last-child { border: none; margin: 0; padding: 0; }
-  .warrant-row .wtype { color: #ff7788; }
-
-  /* loading spinner */
-  #loading-overlay {
-    display: none;
-    padding: 30px;
-    text-align: center;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-sec);
-  }
-  #loading-overlay.visible { display: block; }
-  .spinner {
-    display: inline-block;
-    width: 24px; height: 24px;
-    border: 2px solid var(--border-lit);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-    margin-bottom: 10px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ── WARRANTS / CITATIONS PANE ───────────────── */
-  #pane-warrants, #pane-cites, #pane-incidents {
-    padding: 16px;
-    overflow-y: auto;
-    flex: 1;
-  }
-
-  .action-bar {
-    display: flex; gap: 8px; align-items: flex-end;
-    margin-bottom: 16px; flex-wrap: wrap;
-  }
-
-  .queue-list { display: flex; flex-direction: column; gap: 8px; }
-
-  .queue-item {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    padding: 10px 14px;
-    border-radius: 2px;
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 10px;
-    cursor: default;
-    transition: border-color .15s;
-  }
-  .queue-item:hover { border-color: var(--border-lit); }
-  .queue-item .qi-main { flex: 1; }
-  .qi-subject { font-family: var(--sans); font-size: 14px; font-weight: 700; color: var(--text-head); }
-  .qi-detail  { font-family: var(--mono); font-size: 10px; color: var(--text-sec); margin-top: 2px; }
-  .qi-meta    { font-family: var(--mono); font-size: 10px; color: var(--text-dim); text-align: right; line-height: 1.7; }
-  .qi-type    { font-family: var(--mono); font-size: 9px; }
-
-  /* tag pill */
-  .tag {
-    display: inline-block;
-    font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
-    padding: 2px 7px; border-radius: 2px;
-    text-transform: uppercase; font-weight: 700;
-  }
-  .tag.w  { background: rgba(204,34,51,.2);  color: var(--red);    border: 1px solid var(--red); }
-  .tag.c  { background: rgba(230,184,0,.12); color: var(--yellow); border: 1px solid var(--yellow); }
-  .tag.i  { background: rgba(26,111,181,.15);color: #5aadff;       border: 1px solid #2a7fcc; }
-  .tag.x  { background: rgba(29,185,84,.12); color: var(--green);  border: 1px solid var(--green); }
-
-  /* ── CAD / DISPATCH SIDEBAR ───────────────────── */
-  #sidebar {
-    background: var(--bg-panel);
-    border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .sb-head {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .sb-head-title {
-    font-family: var(--mono); font-size: 9px; color: var(--text-dim);
-    letter-spacing: 2px; text-transform: uppercase;
-  }
-  .sb-calls {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .call-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--text-dim);
-    padding: 8px 10px;
-    cursor: pointer;
-    transition: all .15s;
-    border-radius: 1px;
-  }
-  .call-card:hover { border-color: var(--border-lit); border-left-color: var(--accent); }
-  .call-card.priority-1 { border-left-color: var(--red); }
-  .call-card.priority-2 { border-left-color: var(--orange); }
-  .call-card.priority-3 { border-left-color: var(--yellow); }
-  .call-card.assigned   { border-left-color: var(--green); }
-  .cc-type {
-    font-family: var(--sans); font-size: 12px; font-weight: 700;
-    color: var(--text-head); margin-bottom: 3px;
-  }
-  .cc-addr { font-family: var(--mono); font-size: 10px; color: var(--text-sec); }
-  .cc-meta { display: flex; justify-content: space-between; margin-top: 5px; }
-  .cc-id   { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
-  .cc-time { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
-  .cc-pri  { font-family: var(--mono); font-size: 9px; }
-  .pri-1 { color: var(--red); }
-  .pri-2 { color: var(--orange); }
-  .pri-3 { color: var(--yellow); }
-  .pri-a { color: var(--green); }
-
-  /* unit status panel */
-  .sb-units {
-    border-top: 1px solid var(--border);
-    padding: 8px;
-    flex-shrink: 0;
-  }
-  .unit-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 5px 4px;
-    font-family: var(--mono); font-size: 10px;
-    border-bottom: 1px solid rgba(30,45,66,.4);
-  }
-  .unit-row:last-child { border: none; }
-  .u-id   { color: var(--yellow); font-size: 11px; font-weight: 700; width: 50px; }
-  .u-name { color: var(--text-sec); flex: 1; font-size: 10px; }
-  .u-stat {
-    font-size: 9px; padding: 2px 6px; border-radius: 2px; font-weight: 700; letter-spacing: 1px;
-  }
-  .u-10-8  { background: rgba(29,185,84,.15);  color: var(--green); }
-  .u-10-7  { background: rgba(100,100,100,.15); color: #666; }
-  .u-10-6  { background: rgba(26,111,181,.15);  color: #5aadff; }
-  .u-10-97 { background: rgba(212,114,26,.15);  color: var(--orange); }
-
-  /* modal overlay */
-  #modal-backdrop {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.7);
-    z-index: 100;
-    align-items: center; justify-content: center;
-  }
-  #modal-backdrop.visible { display: flex; }
-  .modal {
-    background: var(--bg-panel);
-    border: 1px solid var(--border-lit);
-    border-top: 3px solid var(--accent);
-    width: 640px;
-    max-width: 97vw;
-    max-height: 90vh;
-    overflow-y: auto;
-    border-radius: 2px;
-  }
-  /* charge list select fix */
-  .charge-list {
-    width: 100%;
-    background: var(--bg-card);
-    border: 1px solid var(--border-lit);
-    color: var(--text-pri);
-    font-family: var(--mono);
-    font-size: 11px;
-    border-radius: 2px;
-    outline: none;
-    height: 160px;
-    cursor: pointer;
-  }
-  .charge-list:focus { border-color: var(--accent); }
-  .charge-list option {
-    padding: 5px 8px;
-    color: var(--text-pri);
-    background: var(--bg-card);
-  }
-  .charge-list option:checked { background: var(--accent); color: #fff; }
-  .charge-list optgroup {
-    color: var(--yellow);
-    font-size: 10px;
-    letter-spacing: 1px;
-    background: #080d12;
-    font-style: normal;
-    font-weight: 700;
-  }
-  .modal.danger-border { border-top-color: var(--red); }
-  .modal-head {
-    padding: 14px 18px 12px;
-    border-bottom: 1px solid var(--border);
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .modal-title {
-    font-family: var(--sans); font-size: 14px; font-weight: 700;
-    color: var(--text-head); letter-spacing: .5px;
-  }
-  .modal-close {
-    font-family: var(--mono); font-size: 16px; color: var(--text-dim);
-    cursor: pointer; padding: 0 4px; line-height: 1;
-  }
-  .modal-close:hover { color: var(--text-pri); }
-  .modal-body { padding: 16px 18px; }
-  .modal-foot {
-    padding: 12px 18px;
-    border-top: 1px solid var(--border);
-    display: flex; justify-content: flex-end; gap: 8px;
-  }
-
-  .form-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-  .form-col { display: flex; flex-direction: column; gap: 4px; }
-  .form-col label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
-  .form-col select {
-    background: var(--bg-card);
-    border: 1px solid var(--border-lit);
-    color: var(--text-pri);
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 7px 10px;
-    outline: none;
-    border-radius: 2px;
-    cursor: pointer;
-  }
-  .form-col select:focus { border-color: var(--accent); }
-  .form-col textarea {
-    background: var(--bg-card);
-    border: 1px solid var(--border-lit);
-    color: var(--text-pri);
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 7px 10px;
-    outline: none;
-    resize: vertical;
-    min-height: 70px;
-    border-radius: 2px;
-    width: 100%;
-  }
-  .form-col textarea:focus { border-color: var(--accent); }
-
-  /* scrollbar */
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: var(--bg-main); }
-  ::-webkit-scrollbar-thumb { background: var(--border-lit); border-radius: 2px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-
-  /* panic mode */
-  body.panic-mode #chrome { border-bottom-color: var(--red) !important; animation: panic-flash .5s ease-in-out infinite alternate; }
-  @keyframes panic-flash { from { background: #060a0e; } to { background: #2a0008; } }
-  body.panic-mode #panic-btn { background: var(--red) !important; color: #fff !important; animation: panic-pulse .6s ease-in-out infinite alternate; }
-  @keyframes panic-pulse { from { box-shadow: 0 0 6px var(--red); } to { box-shadow: 0 0 20px var(--red), 0 0 40px rgba(204,34,51,.4); } }
-  body.panic-mode .status-pill .dot { background: var(--red) !important; box-shadow: 0 0 8px var(--red) !important; }
-
-  /* toast */
-  #toast {
-    position: fixed; bottom: 18px; right: 18px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-lit);
-    border-left: 3px solid var(--green);
-    padding: 10px 16px;
-    font-family: var(--mono); font-size: 11px; color: var(--text-pri);
-    border-radius: 2px;
-    z-index: 200;
-    opacity: 0; transform: translateY(10px);
-    transition: all .25s;
-    pointer-events: none;
-  }
-  #toast.show { opacity: 1; transform: translateY(0); }
-  #toast.err  { border-left-color: var(--red); }
-
-  /* no-result */
-  .no-result {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    padding: 20px;
-    text-align: center;
-    font-family: var(--mono); font-size: 11px;
-    color: var(--yellow);
-    border-radius: 2px;
-  }
-
-  .crime-select-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
-
-  /* system banner */
-  #sys-banner {
-    background: rgba(26,111,181,.1);
-    border-bottom: 1px solid rgba(26,111,181,.25);
-    padding: 4px 14px;
-    font-family: var(--mono); font-size: 10px;
-    color: var(--text-sec);
-    display: flex; gap: 20px; flex-shrink: 0;
-    letter-spacing: .3px;
-  }
-  #sys-banner span { color: var(--text-dim); }
-  #sys-banner b { color: var(--accent); }
-</style>
-</head>
-<body>
-
-<!-- TOP CHROME -->
-<div id="chrome">
-  <div class="logo">COOK COUNTY SO <span>// CJIS MDT v4.11</span></div>
-  <div class="status-pill"><div class="dot"></div>CONNECTED — DISTRICT 7 SECTOR B</div>
-  <div id="clock-block">
-    <div id="clock-time">00:00:00</div>
-    <div class="date-str" id="clock-date">MON JAN 01 2025</div>
-  </div>
-</div>
-
-<!-- SYSTEM BANNER -->
-<div id="sys-banner">
-  <span>OFFICER:</span> <b>R. MALLORY #2247</b>
-  &nbsp;|&nbsp;
-  <span>UNIT:</span> <b>CCSO-247</b>
-  &nbsp;|&nbsp;
-  <span>SHIFT:</span> <b>EVENING 1600–2400</b>
-  &nbsp;|&nbsp;
-  <span>SECTOR:</span> <b>DISTRICT 7 / ZONE B</b>
-  &nbsp;|&nbsp;
-  <span>TERMINAL:</span> <b>MDT-082</b>
-</div>
-
-<!-- MAIN SHELL -->
-<div id="shell">
-
-  <!-- ── LEFT NAV ── -->
-  <nav id="nav">
-    <div class="nav-section-label">Query</div>
-    <div class="nav-item active" data-pane="pane-query" onclick="switchPane(this)">
-      <span class="ni">🔍</span> Person / Vehicle
-    </div>
-    <div class="nav-item" data-pane="pane-incidents" onclick="switchPane(this)">
-      <span class="ni">📋</span> Incident Reports
-    </div>
-    <hr class="nav-divider">
-    <div class="nav-section-label">Records</div>
-    <div class="nav-item" data-pane="pane-warrants" onclick="switchPane(this)">
-      <span class="ni">⚖</span> Warrants
-    </div>
-    <div class="nav-item" data-pane="pane-cites" onclick="switchPane(this)">
-      <span class="ni">🗒</span> Citations / Tickets
-    </div>
-    <hr class="nav-divider">
-    <div class="nav-section-label">Actions</div>
-    <div class="nav-item" onclick="openWarrantModal()">
-      <span class="ni">➕</span> Issue Warrant
-    </div>
-    <div class="nav-item" onclick="openCiteModal()">
-      <span class="ni">📝</span> Write Citation
-    </div>
-    <div class="nav-item" onclick="openIncidentModal()">
-      <span class="ni">📁</span> New Incident
-    </div>
-    <div id="unit-badge">
-      <div class="ub-unit">CCSO-247</div>
-      STATUS: <span id="my-status-label">10-8 AVAILABLE</span><br>
-      ZONE: DISTRICT 7-B<br>
-      CALLS THIS SHIFT: <span id="calls-count">0</span>
-    </div>
-  </nav>
-
-  <!-- ── MAIN CONTENT ── -->
-  <div id="main">
-    <div id="tab-bar">
-      <div class="tab active" data-tab="0" onclick="switchTab(this,0)">PERSON QUERY</div>
-      <div class="tab" data-tab="1" onclick="switchTab(this,1)">VEHICLE QUERY</div>
-      <div class="tab" data-tab="2" onclick="switchTab(this,2)">GANG / ORG</div>
-    </div>
-
-    <!-- PERSON QUERY PANE -->
-    <div class="pane visible" id="pane-query">
-      <div style="padding:16px 16px 0; flex-shrink:0;">
-        <div class="section-head">NCIC / STATE QUERY — PERSON</div>
-        <div id="tab-content-0">
-          <div class="search-row">
-            <div class="field-group">
-              <label>LAST NAME</label>
-              <input class="mdt-input med" id="inp-last" placeholder="SMITH" type="text">
-            </div>
-            <div class="field-group">
-              <label>FIRST NAME</label>
-              <input class="mdt-input med" id="inp-first" placeholder="JOHN" type="text">
-            </div>
-            <div class="field-group">
-              <label>DOB (MM/DD/YYYY)</label>
-              <input class="mdt-input med" id="inp-dob" placeholder="01/01/1990" type="text">
-            </div>
-            <div class="field-group">
-              <label>DL / SSN</label>
-              <input class="mdt-input sm" id="inp-dl" placeholder="DL#" type="text">
-            </div>
-            <button class="mdt-btn" onclick="runQuery()" style="margin-bottom:1px;">▶ QUERY NCIC</button>
-            <button class="mdt-btn" onclick="clearResults()" style="margin-bottom:1px; background:transparent; border-color:var(--border-lit); color:var(--text-sec)">CLEAR</button>
-          </div>
-        </div>
-        <div id="tab-content-1" style="display:none;">
-          <div class="search-row">
-            <div class="field-group">
-              <label>LICENSE PLATE</label>
-              <input class="mdt-input sm" id="inp-plate" placeholder="ABC-1234" type="text">
-            </div>
-            <div class="field-group">
-              <label>STATE</label>
-              <input class="mdt-input sm" id="inp-state" placeholder="PA" type="text" style="width:60px">
-            </div>
-            <div class="field-group">
-              <label>VIN</label>
-              <input class="mdt-input wide" id="inp-vin" placeholder="1HGCM82633A004352" type="text">
-            </div>
-            <button class="mdt-btn" onclick="runVehicleQuery()">▶ QUERY DMV</button>
-          </div>
-        </div>
-        <div id="tab-content-2" style="display:none;">
-          <div class="search-row">
-            <div class="field-group">
-              <label>ORGANIZATION / ALIAS</label>
-              <input class="mdt-input wide" id="inp-gang" placeholder="Enter known alias or org name" type="text">
-            </div>
-            <button class="mdt-btn" onclick="showToast('No active intelligence entries for that organization.','err')">▶ QUERY GANGS</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Loading -->
-      <div id="loading-overlay">
-        <div class="spinner"></div><br>
-        QUERYING NCIC DATABASE…<br>
-        <span style="font-size:10px;color:var(--text-dim)">CONNECTING TO STATE REPOSITORY…</span>
-      </div>
-
-      <!-- Result -->
-      <div id="result-area" style="padding:0 16px 16px; overflow-y:auto; flex:1;">
-      </div>
-    </div>
-
-    <!-- INCIDENTS PANE -->
-    <div class="pane" id="pane-incidents">
-      <div style="padding:16px 16px 0; flex-shrink:0;">
-        <div class="section-head">INCIDENT REPORTS — SHIFT LOG</div>
-        <div class="action-bar">
-          <button class="mdt-btn" onclick="openIncidentModal()">+ NEW INCIDENT</button>
-        </div>
-      </div>
-      <div style="padding:0 16px 16px; overflow-y:auto; flex:1;">
-        <div class="queue-list" id="incident-list">
-          <!-- populated by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- WARRANTS PANE -->
-    <div class="pane" id="pane-warrants">
-      <div style="padding:16px 16px 0; flex-shrink:0;">
-        <div class="section-head">ACTIVE WARRANTS — DISTRICT 7</div>
-        <div class="action-bar">
-          <button class="mdt-btn danger" onclick="openWarrantModal()">+ ISSUE WARRANT</button>
-        </div>
-      </div>
-      <div style="padding:0 16px 16px; overflow-y:auto; flex:1;">
-        <div class="queue-list" id="warrant-list">
-        </div>
-      </div>
-    </div>
-
-    <!-- CITATIONS PANE -->
-    <div class="pane" id="pane-cites">
-      <div style="padding:16px 16px 0; flex-shrink:0;">
-        <div class="section-head">CITATIONS / TICKETS — ISSUED THIS SHIFT</div>
-        <div class="action-bar">
-          <button class="mdt-btn warn" onclick="openCiteModal()">+ WRITE CITATION</button>
-        </div>
-      </div>
-      <div style="padding:0 16px 16px; overflow-y:auto; flex:1;">
-        <div class="queue-list" id="cite-list">
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── CAD SIDEBAR ── -->
-  <div id="sidebar">
-    <div class="sb-head">
-      <div class="sb-head-title">CAD DISPATCH QUEUE</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--green);" id="call-count-badge">● LIVE</div>
-    </div>
-    <div class="sb-calls" id="cad-queue">
-      <!-- populated by JS -->
-    </div>
-    <div class="sb-units">
-      <div class="nav-section-label" style="padding:6px 4px 4px;">UNIT STATUS</div>
-      <div class="unit-row"><span class="u-id">247</span><span class="u-name">MALLORY</span><span class="u-stat" id="my-unit-stat-badge" style="background:rgba(29,185,84,.15);color:var(--green)">10-8</span></div>
-      <div class="unit-row"><span class="u-id">219</span><span class="u-name">CHEN</span><span class="u-stat u-10-97">10-97</span></div>
-      <div class="unit-row"><span class="u-id">231</span><span class="u-name">HARRIS</span><span class="u-stat u-10-8">10-8</span></div>
-      <div class="unit-row"><span class="u-id">208</span><span class="u-name">KOVALSKI</span><span class="u-stat u-10-6">10-6</span></div>
-      <div class="unit-row"><span class="u-id">254</span><span class="u-name">REYES</span><span class="u-stat u-10-8">10-8</span></div>
-      <div class="unit-row"><span class="u-id">262</span><span class="u-name">NGUYEN</span><span class="u-stat u-10-7">10-7</span></div>
-      <!-- MY STATUS CONTROLS -->
-      <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:8px;">
-        <div class="nav-section-label" style="padding:0 4px 6px;">MY STATUS</div>
-        <div style="display:flex;flex-direction:column;gap:5px;padding:0 2px;">
-          <div style="display:flex;gap:4px;flex-wrap:wrap;">
-            <button class="status-btn active-status" data-code="10-8" onclick="setMyStatus('10-8','AVAILABLE',this)" style="flex:1;font-family:var(--mono);font-size:9px;padding:5px 4px;border:1px solid var(--green);background:rgba(29,185,84,.15);color:var(--green);cursor:pointer;border-radius:2px;letter-spacing:.5px;font-weight:700;">10-8 AVAIL</button>
-            <button class="status-btn" data-code="10-6" onclick="setMyStatus('10-6','BUSY',this)" style="flex:1;font-family:var(--mono);font-size:9px;padding:5px 4px;border:1px solid var(--border-lit);background:transparent;color:var(--text-sec);cursor:pointer;border-radius:2px;letter-spacing:.5px;font-weight:700;">10-6 BUSY</button>
-          </div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;">
-            <button class="status-btn" data-code="10-7" onclick="setMyStatus('10-7','OFF DUTY',this)" style="flex:1;font-family:var(--mono);font-size:9px;padding:5px 4px;border:1px solid var(--border-lit);background:transparent;color:var(--text-sec);cursor:pointer;border-radius:2px;letter-spacing:.5px;font-weight:700;">10-7 OFF</button>
-            <button class="status-btn" data-code="10-97" onclick="setMyStatus('10-97','ON SCENE',this)" style="flex:1;font-family:var(--mono);font-size:9px;padding:5px 4px;border:1px solid var(--border-lit);background:transparent;color:var(--text-sec);cursor:pointer;border-radius:2px;letter-spacing:.5px;font-weight:700;">10-97 SCENE</button>
-          </div>
-          <button id="panic-btn" onclick="triggerPanic()" style="width:100%;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;padding:8px 4px;border:2px solid var(--red);background:rgba(204,34,51,.15);color:var(--red);cursor:pointer;border-radius:2px;margin-top:2px;transition:all .15s;">⚠ PANIC ALARM</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL BACKDROP -->
-<div id="modal-backdrop">
-  <div class="modal" id="modal-box">
-    <div class="modal-head">
-      <div class="modal-title" id="modal-title">Modal</div>
-      <div class="modal-close" onclick="closeModal()">✕</div>
-    </div>
-    <div class="modal-body" id="modal-body"></div>
-    <div class="modal-foot" id="modal-foot"></div>
-  </div>
-</div>
-
-<!-- TOAST -->
-<div id="toast"></div>
-
-<script>
-/* ─── DATA ─────────────────────────────────────────────── */
-
-const CRIME_CATEGORIES = [
-  {
-    label: "🚗  TRAFFIC — MOVING VIOLATIONS",
-    charges: [
-      "625 ILCS 5/11-601(a) — Speeding (1–20 mph over limit)",
-      "625 ILCS 5/11-601(b) — Speeding (21–30 mph over limit)",
-      "625 ILCS 5/11-601(c) — Speeding (31+ mph over limit — Aggravated)",
-      "625 ILCS 5/11-601.5 — Speeding in School Zone",
-      "625 ILCS 5/11-601.5(b) — Aggravated Speeding in School Zone",
-      "625 ILCS 5/11-503(a) — Reckless Driving",
-      "625 ILCS 5/11-503(b) — Aggravated Reckless Driving",
-      "625 ILCS 5/11-402 — Failure to Reduce Speed to Avoid Accident",
-      "625 ILCS 5/11-305 — Failure to Obey Traffic Control Signal",
-      "625 ILCS 5/11-306 — Failure to Obey Stop Sign",
-      "625 ILCS 5/11-307 — Failure to Yield — Right of Way",
-      "625 ILCS 5/11-904 — Failure to Yield to Emergency Vehicle",
-      "625 ILCS 5/11-1002 — Failure to Stop for School Bus",
-      "625 ILCS 5/11-709 — Improper Lane Usage",
-      "625 ILCS 5/11-706 — Improper Passing",
-      "625 ILCS 5/11-802 — Improper Turn / Failure to Signal",
-      "625 ILCS 5/11-804 — Illegal U-Turn",
-      "625 ILCS 5/11-1301 — Illegal Parking",
-      "625 ILCS 5/11-1302 — Parking in Fire Lane",
-      "625 ILCS 5/11-1303 — Parking in Handicap Zone w/o Placard",
-      "625 ILCS 5/11-1414 — Following Too Closely (Tailgating)",
-      "625 ILCS 5/11-1003 — Improper Passing of School Bus",
-      "625 ILCS 5/11-502 — Street Racing / Drag Racing",
-      "625 ILCS 5/11-703 — Wrong Way / Wrong Side of Road",
-      "625 ILCS 5/11-205.1 — Using Mobile Device While Driving",
-      "625 ILCS 5/11-501.1 — Texting While Driving",
-    ]
-  },
-  {
-    label: "🪪  TRAFFIC — LICENSE & REGISTRATION",
-    charges: [
-      "625 ILCS 5/6-101 — Driving Without a Valid Driver's License",
-      "625 ILCS 5/6-303 — Driving While License Suspended or Revoked",
-      "625 ILCS 5/6-303(d) — Aggravated DWS — DUI Related",
-      "625 ILCS 5/6-304 — Driving Without Classification / Endorsement",
-      "625 ILCS 5/6-104 — Expired Driver's License",
-      "625 ILCS 5/6-105 — Unlicensed Driver — No Valid License Ever Issued",
-      "625 ILCS 5/3-701 — Expired Vehicle Registration",
-      "625 ILCS 5/3-702 — Operating Unregistered Vehicle",
-      "625 ILCS 5/3-703 — Improper / Fictitious Registration",
-      "625 ILCS 5/3-413 — Improper Display of License Plates",
-      "625 ILCS 5/3-415 — Obstructed / Illegible License Plate",
-      "625 ILCS 5/6-112 — Failure to Carry / Present Driver's License",
-      "625 ILCS 5/3-601 — Failure to Transfer Title",
-      "625 ILCS 5/7-601 — No Proof of Insurance (Financial Responsibility)",
-      "625 ILCS 5/7-602 — Expired Insurance / Insurance Not in Force",
-      "625 ILCS 5/7-603 — False Proof of Insurance",
-      "625 ILCS 5/3-816 — Expired Vehicle Safety Inspection Sticker",
-      "625 ILCS 5/12-601 — Required Equipment — No Headlights",
-      "625 ILCS 5/12-602 — Defective Headlights / Taillights",
-      "625 ILCS 5/12-611 — Broken / No Brake Lights",
-      "625 ILCS 5/12-503 — Obstructed Windshield / Illegal Tint",
-      "625 ILCS 5/12-610.2 — Improper Use of Electronic Device",
-    ]
-  },
-  {
-    label: "🍺  TRAFFIC — DUI / ALCOHOL",
-    charges: [
-      "625 ILCS 5/11-501(a)(1) — DUI — BAC .08 or More",
-      "625 ILCS 5/11-501(a)(2) — DUI — Under Influence of Alcohol",
-      "625 ILCS 5/11-501(a)(3) — DUI — Under Influence of Drugs",
-      "625 ILCS 5/11-501(a)(4) — DUI — Under Influence of Intoxicating Compound",
-      "625 ILCS 5/11-501(a)(6) — DUI — BAC .16 or More (Aggravated)",
-      "625 ILCS 5/11-501(d)(1)(A) — Aggravated DUI — Great Bodily Harm",
-      "625 ILCS 5/11-501(d)(1)(C) — Aggravated DUI — Child Passenger Under 16",
-      "625 ILCS 5/11-501(d)(1)(D) — Aggravated DUI — No Valid License",
-      "625 ILCS 5/11-501(d)(1)(F) — Aggravated DUI — School Bus Zone",
-      "625 ILCS 5/11-501(d)(2) — Aggravated DUI — Causing Death",
-      "625 ILCS 5/11-501.2 — Refusal to Submit to Chemical Test",
-      "625 ILCS 5/11-401 — Leaving Scene of Accident Involving Injury",
-      "625 ILCS 5/11-403 — Leaving Scene of Accident — Property Damage",
-      "625 ILCS 5/11-404 — Duty to Report Accident",
-    ]
-  },
-  {
-    label: "🔫  VIOLENT CRIMES",
-    charges: [
-      "720 ILCS 5/9-1 — First Degree Murder",
-      "720 ILCS 5/9-2 — Second Degree Murder",
-      "720 ILCS 5/9-3 — Involuntary Manslaughter",
-      "720 ILCS 5/9-3.2 — Involuntary Manslaughter — Motor Vehicle",
-      "720 ILCS 5/12-3 — Simple Battery",
-      "720 ILCS 5/12-3.05 — Aggravated Battery",
-      "720 ILCS 5/12-3.05(e)(1) — Aggravated Battery — Firearm",
-      "720 ILCS 5/12-3.2 — Domestic Battery",
-      "720 ILCS 5/12-3.3 — Aggravated Domestic Battery",
-      "720 ILCS 5/12-1 — Assault",
-      "720 ILCS 5/12-2 — Aggravated Assault",
-      "720 ILCS 5/12-6 — Intimidation",
-      "720 ILCS 5/12-6.2 — Aggravated Intimidation",
-      "720 ILCS 5/12-7.3 — Stalking",
-      "720 ILCS 5/12-7.4 — Aggravated Stalking",
-      "720 ILCS 5/12-7.5 — Cyberstalking",
-      "720 ILCS 5/10-1 — Kidnapping",
-      "720 ILCS 5/10-2 — Aggravated Kidnapping",
-      "720 ILCS 5/10-3 — Unlawful Restraint",
-      "720 ILCS 5/10-3.1 — Aggravated Unlawful Restraint",
-      "720 ILCS 5/12-3.4 — Strangulation",
-      "720 ILCS 5/12-7.1 — Hate Crime",
-    ]
-  },
-  {
-    label: "🏠  PROPERTY CRIMES",
-    charges: [
-      "720 ILCS 5/19-1 — Burglary",
-      "720 ILCS 5/19-3 — Residential Burglary",
-      "720 ILCS 5/19-4 — Criminal Trespass to Residence",
-      "720 ILCS 5/21-3 — Criminal Trespass to Land / Vehicle",
-      "720 ILCS 5/18-1 — Robbery",
-      "720 ILCS 5/18-2 — Armed Robbery",
-      "720 ILCS 5/18-3 — Vehicular Hijacking",
-      "720 ILCS 5/18-4 — Aggravated Vehicular Hijacking",
-      "720 ILCS 5/16-1 — Theft (Under $500)",
-      "720 ILCS 5/16-1 — Theft ($500–$10,000 — Class 3 Felony)",
-      "720 ILCS 5/16-1 — Theft (Over $10,000 — Class 2 Felony)",
-      "720 ILCS 5/16-1(a)(4) — Theft — Deceptive Practices",
-      "720 ILCS 5/16-1.1 — Retail Theft (Under $300)",
-      "720 ILCS 5/16-1.1 — Retail Theft ($300+ — Felony)",
-      "720 ILCS 5/16D-3 — Computer Fraud / Theft",
-      "720 ILCS 5/4-103 — Motor Vehicle Theft",
-      "720 ILCS 5/4-103.2 — Aggravated Motor Vehicle Theft",
-      "720 ILCS 5/21-1 — Criminal Damage to Property",
-      "720 ILCS 5/21-1.01 — Criminal Damage to Government Property",
-      "720 ILCS 5/20-1 — Arson",
-      "720 ILCS 5/20-1.1 — Aggravated Arson",
-      "720 ILCS 5/20-1.2 — Residential Arson",
-      "720 ILCS 5/16-30 — Financial Identity Theft",
-    ]
-  },
-  {
-    label: "💊  DRUG OFFENSES",
-    charges: [
-      "720 ILCS 570/402(c) — Possession of Controlled Substance — Class 4",
-      "720 ILCS 570/402(b) — Possession of Controlled Substance — Class 3",
-      "720 ILCS 570/402(a) — Possession of Controlled Substance — Class 1",
-      "720 ILCS 550/4(a) — Possession of Cannabis (Under 10g — Civil)",
-      "720 ILCS 550/4(b) — Possession of Cannabis (10–30g)",
-      "720 ILCS 550/4(d) — Possession of Cannabis (Over 100g — Felony)",
-      "720 ILCS 570/401(c) — Delivery / Manufacture — Schedule III/IV",
-      "720 ILCS 570/401(b) — Manufacture / Delivery — Schedule I/II",
-      "720 ILCS 570/401(a)(1)(A) — Drug Trafficking — Heroin (15g+)",
-      "720 ILCS 570/401(a)(2)(A) — Drug Trafficking — Cocaine (15g+)",
-      "720 ILCS 570/401(a)(7)(A) — Drug Trafficking — Fentanyl",
-      "720 ILCS 570/407 — Delivery to Person Under 18",
-      "720 ILCS 570/404 — Delivery Within 1,000 ft of School / Church",
-      "720 ILCS 570/405 — Drug-Induced Homicide",
-      "720 ILCS 570/406.2 — Possession of Drug Paraphernalia",
-      "720 ILCS 646/55 — Methamphetamine Possession",
-      "720 ILCS 646/60 — Methamphetamine Manufacture",
-    ]
-  },
-  {
-    label: "🔧  WEAPONS OFFENSES",
-    charges: [
-      "720 ILCS 5/24-1 — Unlawful Use of Weapons",
-      "720 ILCS 5/24-1.1 — Unlawful Use or Possession of Weapons by Felon",
-      "720 ILCS 5/24-1.2 — Aggravated Discharge of a Firearm",
-      "720 ILCS 5/24-1.5 — Reckless Discharge of a Firearm",
-      "720 ILCS 5/24-1.6 — Aggravated Unlawful Use of a Weapon (AUUW)",
-      "720 ILCS 5/24-1.7 — Armed Habitual Criminal",
-      "720 ILCS 5/24-2.5 — Possession of Firearm — No FOID Card",
-      "720 ILCS 5/24-3 — Unlawful Sale / Transfer of Firearms",
-      "720 ILCS 5/24-3A — Straw Purchase of Firearm",
-      "720 ILCS 5/24-4 — Firearms Carried in Vehicle — Unlawful",
-      "720 ILCS 5/24-9 — Firearm Stored Without Trigger Lock / Safe",
-      "720 ILCS 5/26-1 — Disorderly Conduct w/ Firearm",
-      "720 ILCS 5/24-1(a)(7)(i) — Concealed Carry — No FCCL",
-    ]
-  },
-  {
-    label: "🚨  PUBLIC ORDER / OBSTRUCTION",
-    charges: [
-      "720 ILCS 5/31-1 — Resisting or Obstructing a Peace Officer",
-      "720 ILCS 5/31-1a — Obstructing Justice",
-      "720 ILCS 5/31-4 — Obstructing Justice — Evidence",
-      "720 ILCS 5/31-6 — Escape",
-      "720 ILCS 5/31-7 — Aiding Escape",
-      "720 ILCS 5/32-2 — Perjury",
-      "720 ILCS 5/32-4 — Intimidation of Witness",
-      "720 ILCS 5/32-4a — Harassing Witness",
-      "720 ILCS 5/32-8 — Tampering with Evidence",
-      "720 ILCS 5/32-10 — Violation of Bail Bond",
-      "720 ILCS 5/25-1 — Mob Action",
-      "720 ILCS 5/26-1 — Disorderly Conduct",
-      "720 ILCS 5/26-6 — Spreading False Reports of Bomb / Hazard",
-      "720 ILCS 5/26.5-1 — Cyberbullying",
-      "720 ILCS 5/12-6.3 — Threatening a Public Official",
-    ]
-  },
-  {
-    label: "💳  FRAUD / FINANCIAL CRIMES",
-    charges: [
-      "720 ILCS 5/17-1 — Deceptive Practices / Fraud",
-      "720 ILCS 5/17-3 — Forgery",
-      "720 ILCS 5/16-16 — Theft by Lessee",
-      "720 ILCS 5/17-5 — Credit Card Fraud",
-      "720 ILCS 5/17-8 — Fraud on Governmental Entity",
-      "720 ILCS 5/17-10.5 — Mail Fraud / Wire Fraud",
-      "720 ILCS 5/16-30 — Financial Identity Theft (Under $300)",
-      "720 ILCS 5/16-30(b) — Aggravated Identity Theft ($300+)",
-      "720 ILCS 5/17-1(B)(a) — Check Fraud — Insufficient Funds",
-      "720 ILCS 5/26-3 — Interference with Emergency Communication",
-      "720 ILCS 5/17-51 — Telecommunications Fraud",
-      "720 ILCS 5/17-56 — Computer Tampering",
-    ]
-  },
-  {
-    label: "🧒  JUVENILE / FAMILY",
-    charges: [
-      "720 ILCS 5/11-6 — Indecent Solicitation of a Child",
-      "720 ILCS 5/11-6.5 — Indecent Solicitation of an Adult",
-      "720 ILCS 5/11-9.1 — Sexual Exploitation of a Child",
-      "720 ILCS 5/11-20.1 — Child Pornography — Production",
-      "720 ILCS 5/11-20.1B — Child Pornography — Possession",
-      "720 ILCS 5/12C-5 — Child Endangerment",
-      "720 ILCS 5/12C-10 — Contributing to Delinquency of Minor",
-      "720 ILCS 5/12-21.5 — Abandonment / Endangerment of Child",
-      "720 ILCS 5/12-3.3 — Abuse / Neglect of Elderly or Disabled",
-      "720 ILCS 5/12-30 — Violation of Order of Protection",
-      "720 ILCS 5/12-3.5 — Interfering with Reporting of Domestic Violence",
-    ]
-  },
-  {
-    label: "🔇  ALCOHOL / VICE",
-    charges: [
-      "235 ILCS 5/6-20 — Sale of Alcohol to Minor",
-      "235 ILCS 5/6-20(a) — Purchase / Possession of Alcohol by Minor",
-      "720 ILCS 5/11-14 — Prostitution",
-      "720 ILCS 5/11-14.3 — Promoting Prostitution",
-      "720 ILCS 5/28-1 — Gambling",
-      "720 ILCS 5/28-3 — Keeping a Gambling Place",
-      "720 ILCS 5/5/26-5 — Public Indecency",
-      "720 ILCS 5/5-8 — Public Intoxication / Disorderly Conduct",
-    ]
-  },
-];
-
-// Flat list for backward compatibility (random picks, etc.)
-const CRIMES = CRIME_CATEGORIES.flatMap(cat => cat.charges);
-
-const WARRANT_TYPES = ["Arrest Warrant", "Bench Warrant", "Search Warrant", "Failure to Appear", "Extradition Warrant", "Civil Warrant"];
-const DISPOSITIONS = ["GUILTY PLEA", "CONVICTED", "NOLLE PROSEQUI", "ACQUITTED", "ARD PROGRAM", "PROBATION", "DISMISSED", "PENDING TRIAL"];
-const DISPO_CLASS = { "GUILTY PLEA":"dispo-guilty","CONVICTED":"dispo-guilty","NOLLE PROSEQUI":"dispo-nolle","ACQUITTED":"dispo-acquit","DISMISSED":"dispo-acquit","ARD PROGRAM":"dispo-nolle","PROBATION":"dispo-nolle","PENDING TRIAL":"dispo-nolle" };
-
-const CALL_TYPES = ["10-33 ALARM", "10-16 DOMESTIC", "415 DISTURBANCE", "10-50 MVA", "211 ROBBERY", "10-52 AMBULANCE NEEDED", "459 BURGLARY", "10-31 CRIME IN PROGRESS", "415F FIGHT", "10-97 ARRIVED SCENE", "594 VANDALISM", "647F DRUNK IN PUBLIC", "10-54 LIVESTOCK ON HWY", "602 TRESPASSING", "148 RESIST ARREST"];
-const STREETS = ["1400 BLK N. HIGHLAND AVE", "700 BLK OAK STREET", "RIDGEMONT BLVD & 5TH ST", "2200 BLK MAPLE DRIVE", "CENTRAL AVE & COMMERCE ST", "900 BLK WESTFIELD RD", "450 BLK PARK PLACE", "DOWNTOWN TRANSIT HUB", "3100 BLK PINE RIDGE PKWY", "FAIRVIEW MALL PARKING LEVEL 2", "HARBOR ST & INDUSTRIAL WAY", "580 BLK LAKEVIEW TERRACE"];
-
-const firstNames = ["JAMES","MARCUS","DEJA","TYRONE","ASHLEY","ROBERTO","KEVIN","SHANNON","DARNELL","BRITTANY","AHMAD","CRYSTAL","WILLIAM","LATASHA","CARLOS","JESSICA","JEROME","HEATHER","DEVON","MIRANDA","PAUL","TABITHA","LAMAR","STEPHANIE","ANDRE","JENNIFER","MALIK","COURTNEY","JOSE","AMANDA"];
-const lastNames  = ["JOHNSON","WILLIAMS","SMITH","BROWN","JONES","GARCIA","MILLER","DAVIS","MARTINEZ","WILSON","ANDERSON","TAYLOR","THOMAS","HERNANDEZ","MOORE","JACKSON","MARTIN","LEE","PEREZ","THOMPSON","WHITE","HARRIS","WALKER","LEWIS","ROBINSON","CLARK","RODRIGUEZ","HALL","YOUNG","ALLEN"];
-
-const RACES = ["B/M","B/F","W/M","W/F","H/M","H/F","A/M","A/F"];
-const EYES  = ["BRN","BLK","BLU","GRN","HAZ","GRY"];
-const HAIR  = ["BLK","BRN","RED","BLD","GRY","WHI","BLU","ONG"];
-const BLDS  = ["SLD","MED","THN","HVY"];
-const CITIES= ["RIDGEMONT","PITTSBURG","HIGHLAND PARK","WESTVIEW","CASTON","MAPLEWOOD","CENTERFIELD"];
-const STATES_LIST = ["PA","OH","WV","NY","MD","NJ","DE","VA"];
-
-/* ─── STATE ─────────────────────────────────────────────── */
-let warrants  = [];
-let citations = [];
-let incidents = [];
-let callsThisShift = 0;
-let cadCalls  = [];
-
-/* ─── CLOCK ────────────────────────────────────────────── */
-function updateClock(){
-  const now = new Date();
-  document.getElementById('clock-time').textContent =
-    now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
-  document.getElementById('clock-date').textContent =
-    now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'2-digit',year:'numeric'}).toUpperCase();
-}
-setInterval(updateClock,1000); updateClock();
-
-/* ─── PANE / TAB SWITCHING ─────────────────────────────── */
-function switchPane(el){
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  el.classList.add('active');
-  const target = el.dataset.pane;
-  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('visible'));
-  document.getElementById(target).classList.add('visible');
-}
-
-function switchTab(el,idx){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  for(let i=0;i<3;i++){
-    const c = document.getElementById('tab-content-'+i);
-    if(c) c.style.display = i===idx?'block':'none';
-  }
-  clearResults();
-}
-
-/* ─── HELPERS ───────────────────────────────────────────── */
-function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
-function randDate(startY,endY){
-  const y=randInt(startY,endY), m=String(randInt(1,12)).padStart(2,'0'), d=String(randInt(1,28)).padStart(2,'0');
-  return m+'/'+d+'/'+y;
-}
-function padZ(n,z=2){ return String(n).padStart(z,'0'); }
-function fmtNow(){
-  const n=new Date();
-  return `${padZ(n.getMonth()+1)}/${padZ(n.getDate())}/${n.getFullYear()} ${padZ(n.getHours())}:${padZ(n.getMinutes())}`;
-}
-function oid(){ return '#'+String(Math.floor(Math.random()*9000000+1000000)); }
-
-function showToast(msg, type='ok'){
-  const t=document.getElementById('toast');
-  t.textContent=msg;
-  t.className='show'+(type==='err'?' err':'');
-  setTimeout(()=>{ t.className=''; },3200);
-}
-
-/* ─── NCIC PERSON QUERY ─────────────────────────────────── */
-function clearResults(){
-  document.getElementById('result-area').innerHTML='';
-  document.getElementById('result-area').classList.remove('visible');
-}
-
-function runQuery(){
-  const last  = document.getElementById('inp-last').value.trim().toUpperCase() || rand(lastNames);
-  const first = document.getElementById('inp-first').value.trim().toUpperCase() || rand(firstNames);
-  if(!last && !first){ showToast('Enter at least a last name or first name.','err'); return; }
-
-  clearResults();
-  const lo = document.getElementById('loading-overlay');
-  lo.classList.add('visible');
-
-  const delay = randInt(900,2200);
-  setTimeout(()=>{
-    lo.classList.remove('visible');
-    const found = Math.random()>.12;
-    if(!found){
-      document.getElementById('result-area').innerHTML = `<div class="no-result">⚠ QUERY COMPLETE — NO RECORD FOUND IN NCIC/STATE REPOSITORY<br><span style="color:var(--text-dim);font-size:10px;margin-top:4px;display:block">NAME: ${first} ${last} &nbsp;|&nbsp; CHECKED AT ${fmtNow()}</span></div>`;
-      document.getElementById('result-area').classList.add('visible');
-      return;
-    }
-    const person = generatePerson(first, last);
-    renderPersonResult(person);
-  }, delay);
-}
-
-function generatePerson(first, last){
-  const hasWarrant  = Math.random()>.55;
-  const isViolent   = Math.random()>.7;
-  const isSexOff    = Math.random()>.88;
-  const numPriors   = randInt(0, 9);
-  const dob         = randInt(1,28).toString().padStart(2,'0')+'/'+randInt(1,12).toString().padStart(2,'0')+'/'+randInt(1958,2004);
-  const dlNum       = rand(STATES_LIST)+randInt(10000000,99999999);
-  const ssn         = `XXX-XX-${randInt(1000,9999)}`;
-  const height      = `${randInt(5,6)}'${randInt(0,11)}"`;
-  const weight      = `${randInt(120,280)} LBS`;
-  const addr        = `${randInt(100,9999)} ${rand(['OAK','MAPLE','PINE','ELM','RIDGE','HIGHLAND','CEDAR','MAIN'])} ${rand(['ST','AVE','DR','BLVD','LN','CT'])}, ${rand(CITIES)}, ${rand(STATES_LIST)}`;
-
-  const myWarrants  = [];
-  if(hasWarrant){
-    const wCount = randInt(1,3);
-    for(let i=0;i<wCount;i++){
-      myWarrants.push({
-        type: rand(WARRANT_TYPES),
-        charge: rand(CRIMES),
-        issued: randDate(2019,2024),
-        caseNum: 'CP-'+randInt(1,99).toString().padStart(2,'0')+'-CR-'+randInt(1000000,9999999),
-        court: rand(['Ridgemont County CP', 'District Court 7-4-02','Common Pleas Court','Magisterial Court 7-3-01']),
-        bail: randInt(0,1)===0 ? 'NO BAIL' : '$'+randInt(500,50000).toLocaleString(),
-      });
-    }
-  }
-
-  const priors = [];
-  for(let i=0;i<numPriors;i++){
-    priors.push({
-      date:   randDate(2010,2023),
-      charge: rand(CRIMES),
-      agency: rand(['RPD','PGPD','MSP','CCSO','FBI','DEA','ATF']),
-      case:   'CP-'+randInt(1,99).toString().padStart(2,'0')+'-CR-'+randInt(1000000,9999999),
-      dispo:  rand(DISPOSITIONS),
-    });
-  }
-
-  return { first, last, dob, dlNum, ssn, race: rand(RACES), height, weight, eyes: rand(EYES), hair: rand(HAIR), build: rand(BLDS), addr, hasWarrant, isViolent, isSexOff, numPriors, warrants: myWarrants, priors };
-}
-
-function renderPersonResult(p){
-  const ra = document.getElementById('result-area');
-
-  let badges = '';
-  if(p.hasWarrant) badges += `<span class="badge warrant">⚠ ACTIVE WARRANT</span>`;
-  if(p.isViolent)  badges += `<span class="badge violent">VIOLENT OFFENDER</span>`;
-  if(p.isSexOff)   badges += `<span class="badge sex-off">SEX OFFENDER REG.</span>`;
-  if(!p.hasWarrant && !p.isViolent && !p.isSexOff) badges += `<span class="badge clear">NO ACTIVE WARRANTS</span>`;
-  if(p.numPriors>5) badges += `<span class="badge caution">PRIOR HISTORY</span>`;
-
-  let warrantHTML = '';
-  if(p.warrants.length){
-    const rows = p.warrants.map(w=>`
-      <div class="warrant-row">
-        <span class="wtype">${w.type.toUpperCase()}</span>
-        <span style="color:var(--text-sec)">${w.caseNum}</span>
-        <span>${w.court}</span>
-        <span style="color:var(--yellow)">${w.bail}</span>
-      </div>
-      <div style="font-family:var(--mono);font-size:10px;color:#aaa;padding:0 0 4px 0">
-        CHARGE: ${w.charge}<br>ISSUED: ${w.issued}
-      </div>`).join('');
-    warrantHTML = `<div class="warrant-box"><div class="wb-head">ACTIVE WARRANT(S) ON FILE — DETAIN SUBJECT</div>${rows}</div>`;
-  }
-
-  let priorHTML = '';
-  if(p.priors.length){
-    const rows = p.priors.map(r=>`
-      <tr>
-        <td class="charge">${r.charge}</td>
-        <td>${r.agency}</td>
-        <td>${r.date}</td>
-        <td class="${DISPO_CLASS[r.dispo]||''}">${r.dispo}</td>
-        <td style="color:var(--text-dim);font-size:10px">${r.case}</td>
-      </tr>`).join('');
-    priorHTML = `
-      <div class="section-head" style="margin-top:12px;">PRIOR CRIMINAL HISTORY (${p.priors.length} RECORD${p.priors.length!==1?'S':''})</div>
-      <table class="rec-table">
-        <thead><tr><th>CHARGE</th><th>AGENCY</th><th>ARREST DATE</th><th>DISPOSITION</th><th>CASE #</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
+/* ═══════════════════════════════════════════════════════════
+   GAME SCREEN SCANNER — CONTINUOUS WATCHER
+   ═══════════════════════════════════════════════════════════ */
+
+let screenStream    = null;
+let screenVideo     = null;
+let scannerMode     = null;
+let pendingCalls    = [];
+let topCallIndex    = 0;
+let watcherActive   = false;
+let watcherInterval = null;
+let lastCallHash    = '';   // dedupe — don't re-alert same calls
+let isAnalyzing     = false; // prevent overlapping AI calls
+
+/* ── Toggle the watcher on/off ───────────────────────────── */
+async function toggleWatcher(){
+  if(watcherActive){
+    stopWatcher();
   } else {
-    priorHTML = `<div class="no-result" style="margin-top:12px;">NO PRIOR CRIMINAL HISTORY ON FILE</div>`;
+    await startWatcher();
   }
-
-  const topBorderClass = p.hasWarrant ? 'warrant-active' : (p.numPriors===0 ? 'clean' : '');
-
-  ra.innerHTML = `
-    <div style="font-family:var(--mono);font-size:9px;color:var(--green);margin-bottom:10px;margin-top:4px;">
-      ✓ QUERY COMPLETE — RECORD LOCATED — ${fmtNow()} — NCIC/STATE REPOSITORY
-    </div>
-    <div class="result-card ${topBorderClass}">
-      <div class="rc-header">
-        <div>
-          <div class="rc-name">${p.last}, ${p.first}</div>
-          <div class="rc-dob">DOB: ${p.dob} &nbsp;|&nbsp; RACE/SEX: ${p.race} &nbsp;|&nbsp; DL: ${p.dlNum}</div>
-        </div>
-        <div class="badge-row">${badges}</div>
-      </div>
-      <div class="rc-grid">
-        <div class="rc-field"><label>HEIGHT</label><div class="val">${p.height}</div></div>
-        <div class="rc-field"><label>WEIGHT</label><div class="val">${p.weight}</div></div>
-        <div class="rc-field"><label>EYES</label><div class="val">${p.eyes}</div></div>
-        <div class="rc-field"><label>HAIR</label><div class="val">${p.hair}</div></div>
-        <div class="rc-field"><label>BUILD</label><div class="val">${p.build}</div></div>
-        <div class="rc-field"><label>SSN</label><div class="val">${p.ssn}</div></div>
-        <div class="rc-field" style="grid-column:span 2"><label>ADDRESS ON FILE</label><div class="val">${p.addr}</div></div>
-      </div>
-      ${warrantHTML}
-      ${priorHTML}
-      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="mdt-btn danger" onclick="openWarrantModalFor('${p.last}, ${p.first}')">ISSUE WARRANT</button>
-        <button class="mdt-btn warn"   onclick="openCiteModalFor('${p.last}, ${p.first}')">WRITE CITATION</button>
-        <button class="mdt-btn"        onclick="openIncidentModalFor('${p.last}, ${p.first}')">ADD TO INCIDENT</button>
-      </div>
-    </div>`;
-  ra.classList.add('visible');
 }
 
-/* ─── VEHICLE QUERY ─────────────────────────────────────── */
-function runVehicleQuery(){
-  const plate = document.getElementById('inp-plate').value.trim().toUpperCase() || (rand(['ABC','XYZ','RPD','TMP'])+'-'+randInt(1000,9999));
-  const lo = document.getElementById('loading-overlay');
-  lo.classList.add('visible');
-  clearResults();
-  setTimeout(()=>{
-    lo.classList.remove('visible');
-    const found = Math.random()>.1;
-    if(!found){
-      document.getElementById('result-area').innerHTML = `<div class="no-result">⚠ NO VEHICLE RECORD FOUND FOR PLATE: ${plate}</div>`;
-      document.getElementById('result-area').classList.add('visible');
+async function startWatcher(){
+  // Request screen share if not already linked
+  if(!screenStream){
+    try {
+      setScreenStatus('Requesting screen…', 'dim');
+      screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 2, cursor: 'never' },
+        audio: false,
+        preferCurrentTab: false,
+      });
+
+      if(!screenVideo){
+        screenVideo = document.createElement('video');
+        screenVideo.muted = true;
+        screenVideo.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;';
+        document.body.appendChild(screenVideo);
+      }
+      screenVideo.srcObject = screenStream;
+      await screenVideo.play();
+
+      screenStream.getVideoTracks()[0].addEventListener('ended', ()=>{
+        screenStream = null;
+        screenVideo  = null;
+        stopWatcher();
+        showToast('Screen share ended — watcher stopped.', 'err');
+      });
+    } catch(e){
+      setScreenStatus('Not watching', 'dim');
+      if(e.name !== 'NotAllowedError') showToast('Could not share screen: '+e.message, 'err');
       return;
     }
-    const makes   = ["FORD","CHEVROLET","DODGE","HONDA","TOYOTA","NISSAN","HYUNDAI","BMW","MERCEDES","KIA","GMC","RAM","JEEP","VOLKSWAGEN","SUBARU"];
-    const models  = {"FORD":["FUSION","F-150","EXPLORER","MUSTANG","ESCAPE"],"CHEVROLET":["SILVERADO","MALIBU","EQUINOX","CAMARO","TAHOE"],"DODGE":["CHARGER","CHALLENGER","DURANGO","RAM 1500"],"HONDA":["CIVIC","ACCORD","CR-V","PILOT","ODYSSEY"],"TOYOTA":["CAMRY","COROLLA","4RUNNER","TACOMA","HIGHLANDER"],"NISSAN":["ALTIMA","SENTRA","ROGUE","MAXIMA","PATHFINDER"],"HYUNDAI":["SONATA","ELANTRA","TUCSON","SANTA FE"],"BMW":["3 SERIES","5 SERIES","X5","M3","X3"],"MERCEDES":["C-CLASS","E-CLASS","GLE","GLC","S-CLASS"],"KIA":["OPTIMA","SPORTAGE","SORENTO","TELLURIDE","SOUL"],"GMC":["SIERRA","YUKON","ACADIA","TERRAIN"],"RAM":["1500","2500","3500","PROMASTER"],"JEEP":["GRAND CHEROKEE","WRANGLER","COMPASS","RENEGADE"],"VOLKSWAGEN":["JETTA","PASSAT","TIGUAN","ATLAS","GOLF"],"SUBARU":["OUTBACK","FORESTER","IMPREZA","LEGACY","CROSSTREK"]};
-    const colors  = ["BLACK","WHITE","SILVER","GRAY","RED","BLUE","GREEN","TAN","BROWN","ORANGE","YELLOW","MAROON","NAVY","DARK BLUE"];
-    const make    = rand(makes);
-    const model   = rand(models[make]||["SEDAN"]);
-    const year    = randInt(2001,2024);
-    const color   = rand(colors);
-    const stolen  = Math.random()>.85;
-    const expired = Math.random()>.7;
-    const ownLast = rand(lastNames);
-    const ownFirst= rand(firstNames);
-    const vin     = ['1','2','3','4','5'].map(()=>(Math.random().toString(36).substring(2,6).toUpperCase())).join('').substring(0,17).padEnd(17,'0');
-    document.getElementById('result-area').innerHTML = `
-      <div style="font-family:var(--mono);font-size:9px;color:var(--green);margin-bottom:10px;margin-top:4px;">✓ DMV QUERY COMPLETE — ${fmtNow()}</div>
-      <div class="result-card ${stolen?'warrant-active':''}">
-        <div class="rc-header">
-          <div>
-            <div class="rc-name">${plate} — ${color} ${year} ${make} ${model}</div>
-            <div class="rc-dob">STATE: ${document.getElementById('inp-state').value||'PA'} &nbsp;|&nbsp; VIN: ${vin}</div>
-          </div>
-          <div class="badge-row">
-            ${stolen ? '<span class="badge warrant">STOLEN VEHICLE</span>' : '<span class="badge clear">NOT REPORTED STOLEN</span>'}
-            ${expired ? '<span class="badge caution">REG. EXPIRED</span>' : ''}
-          </div>
-        </div>
-        <div class="rc-grid">
-          <div class="rc-field"><label>REGISTERED OWNER</label><div class="val">${ownFirst} ${ownLast}</div></div>
-          <div class="rc-field"><label>YEAR</label><div class="val">${year}</div></div>
-          <div class="rc-field"><label>MAKE / MODEL</label><div class="val">${make} ${model}</div></div>
-          <div class="rc-field"><label>COLOR</label><div class="val">${color}</div></div>
-          <div class="rc-field"><label>PLATE</label><div class="val">${plate}</div></div>
-          <div class="rc-field"><label>REGISTRATION EXP</label><div class="val" style="color:${expired?'var(--red)':'var(--green)'}">${expired?'EXPIRED '+randDate(2020,2023):randDate(2024,2026)}</div></div>
-          <div class="rc-field"><label>INSURED</label><div class="val" style="color:${Math.random()>.3?'var(--green)':'var(--red)'}">${Math.random()>.3?'YES — STATE FARM':'NO RECORD'}</div></div>
-          <div class="rc-field"><label>LIENHOLDER</label><div class="val">${Math.random()>.5?rand(['CHASE AUTO','WELLS FARGO','TD AUTO','ALLY FINANCIAL','BOA']):'NONE'}</div></div>
-        </div>
-        <div style="margin-top:10px;display:flex;gap:8px;">
-          <button class="mdt-btn" onclick="showToast('Vehicle history report queued.','ok')">VEHICLE HISTORY</button>
-          ${stolen?'<button class="mdt-btn danger" onclick="showToast(\'Stolen vehicle flag confirmed — contact dispatch immediately.\',\'err\')">CONFIRM STOLEN</button>':''}
-        </div>
-      </div>`;
-    document.getElementById('result-area').classList.add('visible');
-  }, randInt(800,1800));
-}
-
-/* ─── CAD CALLS ─────────────────────────────────────────── */
-function generateCalls(n){
-  const calls=[];
-  const priorities = [1,1,2,2,2,3,3,3];
-  for(let i=0;i<n;i++){
-    const pri = rand(priorities);
-    const assigned = Math.random()>.6;
-    calls.push({
-      id: 'CAD'+randInt(10000,99999),
-      type: rand(CALL_TYPES),
-      addr: rand(STREETS),
-      pri,
-      time: padZ(randInt(0,23))+':'+padZ(randInt(0,59)),
-      assigned,
-      unit: assigned ? rand(['219','231','208','254','262','247']) : null,
-    });
   }
-  return calls;
+
+  watcherActive = true;
+  setWatcherUI(true);
+  showToast('Watching your game screen — calls will appear automatically.');
+
+  // Run immediately, then every 8 seconds
+  runWatchCycle();
+  watcherInterval = setInterval(runWatchCycle, 8000);
 }
 
-function renderCAD(){
-  cadCalls = generateCalls(randInt(5,9));
-  const q = document.getElementById('cad-queue');
-  q.innerHTML = cadCalls.map(c=>`
-    <div class="call-card priority-${c.pri} ${c.assigned?'assigned':''}" onclick="assignCall('${c.id}')">
-      <div class="cc-type">${c.type}</div>
-      <div class="cc-addr">${c.addr}</div>
-      <div class="cc-meta">
-        <span class="cc-id">${c.id}</span>
-        <span class="cc-pri pri-${c.pri}">P${c.pri}${c.assigned?' | UNIT '+c.unit:''}</span>
-        <span class="cc-time">${c.time}</span>
-      </div>
-    </div>`).join('');
+function stopWatcher(){
+  watcherActive = false;
+  clearInterval(watcherInterval);
+  watcherInterval = null;
+  setWatcherUI(false);
+  setScreenStatus('Not watching', 'dim');
+  showToast('Screen watcher stopped.');
 }
 
-function assignCall(id){
-  callsThisShift++;
-  document.getElementById('calls-count').textContent = callsThisShift;
-  showToast(`Unit CCSO-247 assigned to call ${id}. Status set to 10-97.`);
-  setTimeout(renderCAD, 800);
-}
+function setWatcherUI(active){
+  const btn  = document.getElementById('nav-watch-screen');
+  const txt  = document.getElementById('watch-btn-txt');
+  const dbBtn = document.getElementById('nav-scan-db');
+  const dot  = document.querySelector('#nav-screen-indicator .ni');
 
-renderCAD();
-setInterval(()=>{
-  if(Math.random()>.6) renderCAD();
-}, 18000);
-
-/* ─── WARRANT MODAL ─────────────────────────────────────── */
-function openWarrantModal(subjectPrefill=''){
-  openModal('ISSUE ARREST WARRANT', buildWarrantForm(subjectPrefill), [
-    { label:'CLEAR',   cls:'',      fn:'closeModal()' },
-    { label:'SUBMIT WARRANT', cls:'danger', fn:'submitWarrant()' },
-  ], true);
-}
-function openWarrantModalFor(name){ openWarrantModal(name); }
-
-function buildWarrantForm(subjectPrefill=''){
-  const { html: chargeHTML, totalShown } = buildChargeOptgroups('');
-  const wTypeOpts = WARRANT_TYPES.map(w=>`<option>${w}</option>`).join('');
-  return `
-    <div class="form-row">
-      <div class="form-col" style="flex:1"><label>SUBJECT NAME</label><input class="mdt-input" id="w-subject" style="width:100%" value="${subjectPrefill}" placeholder="LAST, FIRST"></div>
-      <div class="form-col"><label>DOB</label><input class="mdt-input sm" id="w-dob" placeholder="MM/DD/YYYY"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-col"><label>WARRANT TYPE</label><select id="w-type">${wTypeOpts}</select></div>
-      <div class="form-col" style="flex:1"><label>BAIL AMOUNT</label><input class="mdt-input" id="w-bail" placeholder="e.g. $10,000 or NO BAIL" style="width:100%"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-col" style="width:100%">
-        <label>CHARGE(S) — SEARCH OR SCROLL BY CATEGORY</label>
-        <input class="mdt-input" id="w-charge-search" style="width:100%;margin-bottom:6px;" placeholder='Search: "murder" "robbery" "DUI" "assault" "weapon"…' oninput="filterWarrantCharges(this.value)">
-        <select id="w-charge" class="charge-list">${chargeHTML}</select>
-        <div id="w-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:4px;letter-spacing:1px;">${totalShown} CHARGES TOTAL ACROSS ALL CATEGORIES</div>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-col" style="flex:1"><label>ISSUING COURT</label><input class="mdt-input" id="w-court" style="width:100%" placeholder="Cook County Circuit Court"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-col" style="width:100%"><label>NARRATIVE / PROBABLE CAUSE</label><textarea id="w-narrative" placeholder="Describe the probable cause for this warrant..."></textarea></div>
-    </div>`;
-}
-
-function filterWarrantCharges(query){
-  const sel = document.getElementById('w-charge');
-  const count = document.getElementById('w-charge-count');
-  if(!sel) return;
-  const { html, totalShown } = buildChargeOptgroups(query);
-  sel.innerHTML = html;
-  if(totalShown > 0) sel.selectedIndex = 0;
-  const q = query.trim();
-  count.textContent = totalShown + ' CHARGE' + (totalShown !== 1 ? 'S' : '') + (q ? ` MATCHING "${q.toUpperCase()}"` : ' TOTAL ACROSS ALL CATEGORIES');
-  count.style.color = q && totalShown === 0 ? 'var(--red)' : 'var(--text-dim)';
-}
-
-function submitWarrant(){
-  const subject = document.getElementById('w-subject').value.trim();
-  const charge  = document.getElementById('w-charge').value;
-  const wtype   = document.getElementById('w-type').value;
-  const bail    = document.getElementById('w-bail').value || 'N/A';
-  if(!subject){ showToast('Subject name is required.','err'); return; }
-  warrants.push({ id:'WRT'+randInt(100000,999999), subject, charge, wtype, bail, date: fmtNow(), officer:'R. MALLORY #2247', status:'ACTIVE' });
-  renderWarrants();
-  closeModal();
-  showToast('Warrant issued — entered into NCIC/STATE system.');
-  callsThisShift++;
-  document.getElementById('calls-count').textContent = callsThisShift;
-}
-
-function renderWarrants(){
-  const list = document.getElementById('warrant-list');
-  if(!warrants.length){
-    list.innerHTML = `<div class="no-result">NO WARRANTS ISSUED THIS SESSION</div>`;
-    return;
+  if(active){
+    btn.style.borderLeftColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    txt.textContent = 'Stop Watching';
+    if(dbBtn){ dbBtn.style.opacity='1'; dbBtn.style.pointerEvents='auto'; }
+    if(dot){ dot.style.color='var(--green)'; dot.style.textShadow='0 0 6px var(--green)'; }
+  } else {
+    btn.style.borderLeftColor = 'transparent';
+    btn.style.color = '';
+    txt.textContent = 'Watch Game Screen';
+    if(dbBtn){ dbBtn.style.opacity='.5'; dbBtn.style.pointerEvents='none'; }
+    if(dot){ dot.style.color='var(--text-dim)'; dot.style.textShadow='none'; }
   }
-  list.innerHTML = warrants.map(w=>`
-    <div class="queue-item">
-      <div class="qi-main">
-        <div class="qi-subject">${w.subject}</div>
-        <div class="qi-detail">${w.wtype} &nbsp;|&nbsp; ${w.charge}</div>
-        <div class="qi-detail" style="margin-top:3px;">BAIL: ${w.bail} &nbsp;|&nbsp; OIC: ${w.officer}</div>
-      </div>
-      <div class="qi-meta">
-        <span class="tag w">ACTIVE</span><br>
-        ${w.id}<br>
-        ${w.date}
-      </div>
-    </div>`).join('');
 }
-renderWarrants();
 
-/* ─── CITATION MODAL ─────────────────────────────────────── */
-function openCiteModal(subjectPrefill=''){
-  openModal('WRITE TRAFFIC / CRIMINAL CITATION', buildCiteForm(subjectPrefill), [
-    { label:'CANCEL', cls:'', fn:'closeModal()' },
-    { label:'ISSUE CITATION', cls:'warn', fn:'submitCite()' },
-  ]);
+function setScreenStatus(txt, style){
+  const el = document.getElementById('screen-status-txt');
+  if(!el) return;
+  el.textContent = txt;
+  el.style.color = style==='active' ? 'var(--green)' : style==='warn' ? 'var(--yellow)' : 'var(--text-dim)';
 }
-function openCiteModalFor(name){ openCiteModal(name); }
 
-function buildChargeOptgroups(filterQ){
-  const q = filterQ ? filterQ.trim().toLowerCase() : '';
-  let html = '';
-  let totalShown = 0;
-  CRIME_CATEGORIES.forEach(cat => {
-    const matches = q ? cat.charges.filter(c => c.toLowerCase().includes(q)) : cat.charges;
-    if(matches.length === 0) return;
-    totalShown += matches.length;
-    html += `<optgroup label="${cat.label}">`;
-    matches.forEach(c => { html += `<option value="${c}">${c}</option>`; });
-    html += `</optgroup>`;
+/* ── One watch cycle ─────────────────────────────────────── */
+async function runWatchCycle(){
+  if(!watcherActive || isAnalyzing || !screenStream || !screenVideo || screenVideo.readyState < 2) return;
+  isAnalyzing = true;
+  setScreenStatus('Scanning…', 'active');
+
+  try {
+    // Capture left/center of screen (call queue area)
+    const frame = await captureFrame('calls');
+
+    const prompt = `You are watching a live screenshot of the police game "Flashing Lights" on Steam.
+Look at the CALL QUEUE / DISPATCH area on screen (usually left-center area).
+Extract every NEW incoming dispatch call visible. For each call return:
+- type: call type (e.g. "Disturbance", "Traffic Accident", "Robbery", "Theft", "Assault")
+- address: location shown
+- priority: 1 2 or 3  (1=most urgent, default 3 if unclear)
+- details: any extra text
+
+If you see NO calls or the call queue area is not visible, return {"calls":[]}.
+ONLY return valid JSON, no markdown fences, no explanation:
+{"calls":[{"type":"...","address":"...","priority":2,"details":"..."}]}`;
+
+    const raw = await analyzeWithAI(frame, prompt);
+    const clean = raw.replace(/\`\`\`json|\`\`\`/g,'').trim();
+    let result;
+    try { result = JSON.parse(clean); } catch(e){ result = {calls:[]}; }
+
+    const calls = (result.calls || []).filter(c => c.type && c.type.length > 1);
+
+    // Dedupe — hash the call types+addresses
+    const hash = calls.map(c=>(c.type+c.address).toLowerCase().replace(/\s/g,'')).sort().join('|');
+
+    if(hash && hash !== lastCallHash && calls.length > 0){
+      lastCallHash = hash;
+      // Stamp IDs and times
+      calls.forEach(c=>{
+        c.id   = 'CAD'+randInt(10000,99999);
+        c.time = padZ(new Date().getHours())+':'+padZ(new Date().getMinutes());
+      });
+      pendingCalls = calls;
+      topCallIndex = 0;
+      renderCAD(pendingCalls);
+      // Pop the scanner overlay to show the calls
+      openScanner('calls');
+      renderScannedCalls(pendingCalls);
+      setScreenStatus(calls.length+' call(s) detected', 'active');
+    } else if(!calls.length){
+      setScreenStatus('Watching… no calls', 'dim');
+    } else {
+      setScreenStatus('Up to date', 'dim');
+    }
+
+  } catch(e){
+    setScreenStatus('Scan error', 'warn');
+    console.error('Watch cycle error:', e);
+  }
+
+  isAnalyzing = false;
+}
+
+/* ── Capture a frame from the live screen ────────────────── */
+function captureFrame(cropMode){
+  return new Promise((resolve, reject)=>{
+    if(!screenStream || !screenVideo || screenVideo.readyState < 2){
+      reject(new Error('Screen not linked.'));
+      return;
+    }
+    const vw = screenVideo.videoWidth;
+    const vh = screenVideo.videoHeight;
+    const canvas = document.getElementById('scanner-canvas');
+    const ctx = canvas.getContext('2d');
+
+    let sx=0, sy=0, sw=vw, sh=vh;
+    if(cropMode === 'calls'){
+      sx = 0;
+      sy = Math.floor(vh * 0.2);
+      sw = Math.floor(vw * 0.5);
+      sh = Math.floor(vh * 0.65);
+    } else if(cropMode === 'database'){
+      sx = Math.floor(vw * 0.45);
+      sy = 0;
+      sw = Math.floor(vw * 0.55);
+      sh = vh;
+    }
+    canvas.width  = sw;
+    canvas.height = sh;
+    ctx.drawImage(screenVideo, sx, sy, sw, sh, 0, 0, sw, sh);
+    resolve(canvas.toDataURL('image/jpeg', 0.82));
   });
-  if(!html) html = `<option value="" disabled>— NO MATCHES FOR "${filterQ}" —</option>`;
-  return { html, totalShown };
 }
 
-function filterCiteCharges(query){
-  const sel = document.getElementById('c-charge');
-  const count = document.getElementById('c-charge-count');
-  if(!sel) return;
-  const { html, totalShown } = buildChargeOptgroups(query);
-  sel.innerHTML = html;
-  if(totalShown > 0) sel.selectedIndex = 0;
-  const q = query.trim();
-  count.textContent = totalShown + ' CHARGE' + (totalShown !== 1 ? 'S' : '') + (q ? ` MATCHING "${q.toUpperCase()}"` : ' TOTAL ACROSS ALL CATEGORIES');
-  count.style.color = q && totalShown === 0 ? 'var(--red)' : 'var(--text-dim)';
+/* ── Send frame to Claude vision API ─────────────────────── */
+async function analyzeWithAI(base64jpg, prompt){
+  const base64data = base64jpg.split(',')[1];
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64data } },
+          { type: 'text', text: prompt }
+        ]
+      }]
+    })
+  });
+  if(!response.ok){
+    const err = await response.text();
+    throw new Error('API '+response.status+': '+err.substring(0,120));
+  }
+  const data = await response.json();
+  return data.content.map(b=>b.text||'').join('');
 }
 
-function filterWarrantCharges(query){
-  const sel = document.getElementById('w-charge');
-  const count = document.getElementById('w-charge-count');
-  if(!sel) return;
-  const { html, totalShown } = buildChargeOptgroups(query);
-  sel.innerHTML = html;
-  if(totalShown > 0) sel.selectedIndex = 0;
-  const q = query.trim();
-  count.textContent = totalShown + ' CHARGE' + (totalShown !== 1 ? 'S' : '') + (q ? ` MATCHING "${q.toUpperCase()}"` : ' TOTAL ACROSS ALL CATEGORIES');
-  count.style.color = q && totalShown === 0 ? 'var(--red)' : 'var(--text-dim)';
-}
+/* ── Render detected calls in the scanner popup ──────────── */
+function renderScannedCalls(calls){
+  document.getElementById('scanner-db-result').style.display='none';
+  const callResult = document.getElementById('scanner-call-result');
+  const list = document.getElementById('scanner-calls-list');
 
-function buildCiteForm(subjectPrefill=''){
-  const { html: chargeHTML, totalShown } = buildChargeOptgroups('');
-  return `
-    <div class="form-row">
-      <div class="form-col" style="flex:1"><label>SUBJECT NAME</label><input class="mdt-input" id="c-subject" style="width:100%" value="${subjectPrefill}" placeholder="LAST, FIRST"></div>
-      <div class="form-col"><label>DL #</label><input class="mdt-input sm" id="c-dl" placeholder="DL#"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-col" style="flex:1"><label>VEHICLE PLATE</label><input class="mdt-input sm" id="c-plate" placeholder="ABC-1234"></div>
-      <div class="form-col"><label>STATE</label><input class="mdt-input" id="c-vstate" style="width:60px" placeholder="IL"></div>
-      <div class="form-col" style="flex:2"><label>LOCATION OF VIOLATION</label><input class="mdt-input" id="c-loc" style="width:100%" placeholder="e.g. 1400 BLK N. HIGHLAND AVE"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-col" style="width:100%">
-        <label>VIOLATION / CHARGE — SEARCH OR SCROLL BY CATEGORY</label>
-        <input class="mdt-input" id="c-charge-search" style="width:100%;margin-bottom:6px;" placeholder='Search: "insurance" "DUI" "speeding" "assault" "theft"…' oninput="filterCiteCharges(this.value)">
-        <select id="c-charge" class="charge-list">${chargeHTML}</select>
-        <div id="c-charge-count" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:4px;letter-spacing:1px;">${totalShown} CHARGES TOTAL ACROSS ALL CATEGORIES</div>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-col"><label>FINE AMOUNT</label><input class="mdt-input" id="c-fine" placeholder="$0.00" style="width:120px"></div>
-      <div class="form-col"><label>COURT DATE</label><input class="mdt-input" id="c-courtdate" placeholder="MM/DD/YYYY" style="width:130px"></div>
-      <div class="form-col"><label>SPEED</label><input class="mdt-input" id="c-speed" placeholder="e.g. 72/55" style="width:100px"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-col" style="width:100%"><label>OFFICER NOTES</label><textarea id="c-notes" placeholder="Additional notes..."></textarea></div>
-    </div>`;
-}
-
-function submitCite(){
-  const subject = document.getElementById('c-subject').value.trim();
-  const charge  = document.getElementById('c-charge').value;
-  const fine    = document.getElementById('c-fine').value || 'N/A';
-  const loc     = document.getElementById('c-loc').value || 'UNKNOWN LOCATION';
-  if(!subject){ showToast('Subject name is required.','err'); return; }
-  citations.push({ id:'CIT'+randInt(100000,999999), subject, charge, fine, loc, date: fmtNow(), officer:'R. MALLORY #2247', status:'ISSUED' });
-  renderCitations();
-  closeModal();
-  showToast('Citation issued — logged to system.');
-}
-
-function renderCitations(){
-  const list = document.getElementById('cite-list');
-  if(!citations.length){
-    list.innerHTML = `<div class="no-result">NO CITATIONS ISSUED THIS SESSION</div>`;
+  if(!calls.length){
+    setScannerStatus('✓ Watching — no active calls on screen right now.');
+    list.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);">No calls found. Watcher will alert when calls appear.</div>';
+    callResult.style.display='block';
     return;
   }
-  list.innerHTML = citations.map(c=>`
-    <div class="queue-item">
-      <div class="qi-main">
-        <div class="qi-subject">${c.subject}</div>
-        <div class="qi-detail">${c.charge}</div>
-        <div class="qi-detail" style="margin-top:3px;">LOCATION: ${c.loc} &nbsp;|&nbsp; FINE: ${c.fine}</div>
-      </div>
-      <div class="qi-meta">
-        <span class="tag c">ISSUED</span><br>
-        ${c.id}<br>
-        ${c.date}
-      </div>
+
+  setScannerStatus(calls.length+' call(s) detected — Press Y to respond · N to dismiss · ESC to close');
+  list.innerHTML = calls.map((c,i)=>`
+    <div class="scan-call-card ${i===0?'top-call':''}" id="scall-${i}">
+      <div class="scc-type">${i===0?'▶ ':''} P${c.priority||'?'} — ${c.type||'UNKNOWN'}</div>
+      <div class="scc-detail">${c.address||'No address'} ${c.details?'| '+c.details:''}</div>
     </div>`).join('');
-}
-renderCitations();
-
-/* ─── INCIDENT MODAL ─────────────────────────────────────── */
-function openIncidentModal(subjectPrefill=''){
-  openModal('NEW INCIDENT REPORT', buildIncidentForm(subjectPrefill), [
-    { label:'CANCEL', cls:'', fn:'closeModal()' },
-    { label:'SUBMIT REPORT', cls:'success', fn:'submitIncident()' },
-  ]);
-}
-function openIncidentModalFor(name){ openIncidentModal(name); }
-
-function buildIncidentForm(subjectPrefill=''){
-  const types = ["Assault","Domestic Violence","Robbery","Burglary","Theft","MVA","DUI","Narcotics","Disorderly Conduct","Trespass","Warrant Service","Suspicious Person","Welfare Check","Found Property","Missing Person","Death Investigation","Public Intoxication","Vandalism","Stalking/Harassment","Animal Complaint","Noise Complaint","Traffic Stop","Foot Pursuit","Vehicle Pursuit","Shots Fired","Stabbing","Medical Assist","Fire Assist","Mental Health Crisis","Other"];
-  const typeOpts = types.map(t=>`<option>${t}</option>`).join('');
-  return `
-    <div class="form-row">
-      <div class="form-col" style="flex:1"><label>INCIDENT TYPE</label><select id="i-type" style="width:100%">${typeOpts}</select></div>
-      <div class="form-col"><label>PRIORITY</label><select id="i-pri" style="width:90px"><option>Priority 1</option><option>Priority 2</option><option selected>Priority 3</option></select></div>
-    </div>
-    <div class="form-row">
-      <div class="form-col" style="flex:1"><label>LOCATION / ADDRESS</label><input class="mdt-input" id="i-loc" style="width:100%" placeholder="${rand(STREETS)}"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-col" style="flex:1"><label>SUBJECT(S) INVOLVED</label><input class="mdt-input" id="i-subject" style="width:100%" value="${subjectPrefill}" placeholder="Name(s) or UNKNOWN"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-col" style="width:100%"><label>NARRATIVE</label><textarea id="i-narrative" rows="5" placeholder="Describe the incident in detail. Include officer actions, subject descriptions, evidence collected, and any additional units requested..."></textarea></div>
-    </div>
-    <div class="form-row">
-      <div class="form-col"><label>DISPOSITION</label><select id="i-dispo" style="width:200px"><option>Arrest Made</option><option>Report Only</option><option>Gone on Arrival</option><option>Referred to DA</option><option>Civil Matter</option><option>No Crime Occurred</option><option>Pending Investigation</option></select></div>
-    </div>`;
+  callResult.style.display='block';
 }
 
-function submitIncident(){
-  const type    = document.getElementById('i-type').value;
-  const loc     = document.getElementById('i-loc').value || rand(STREETS);
-  const subject = document.getElementById('i-subject').value || 'UNKNOWN';
-  const dispo   = document.getElementById('i-dispo').value;
-  incidents.push({ id:'CCSO'+padZ(randInt(1,9999),4)+'-'+new Date().getFullYear(), type, loc, subject, dispo, date: fmtNow(), officer:'R. MALLORY #2247' });
+/* ── DB / Plate scan (manual) ────────────────────────────── */
+async function scanDatabase(){
+  if(!watcherActive){ showToast('Start the watcher first.', 'err'); return; }
+  openScanner('database');
+  setScannerStatus('🔎 Capturing database / MDT area…');
+
+  let frame;
+  try { frame = await captureFrame('database'); }
+  catch(e){ setScannerStatus('⚠ '+e.message); return; }
+
+  setScannerStatus('🤖 Reading database panel…');
+
+  const prompt = `You are reading a screenshot from the police game "Flashing Lights".
+This shows the in-game MDT / database panel on the right side of the screen.
+Extract all visible info:
+- Person name, DOB, driver license number and status
+- Vehicle plate, make, model, year, color
+- Stolen vehicle flag
+- Warrant status and charge
+- Insurance status (valid/expired/none)
+- Registration status
+- Any alerts or flags
+
+Return ONLY valid JSON no markdown:
+{"person":{"name":"","dob":"","license":"","license_status":""},"vehicle":{"plate":"","make":"","model":"","year":"","color":"","stolen":false},"warrant":{"active":false,"type":"","charge":""},"insurance":{"status":"","expires":""},"flags":[],"notes":""}
+If nothing relevant visible return {"nothing_found":true}`;
+
+  let result;
+  try {
+    const raw = await analyzeWithAI(frame, prompt);
+    const clean = raw.replace(/\`\`\`json|\`\`\`/g,'').trim();
+    result = JSON.parse(clean);
+  } catch(e){
+    setScannerStatus('⚠ Could not read panel. Is the MDT open in the game?');
+    return;
+  }
+  renderDBResult(result);
+}
+
+function renderDBResult(r){
+  document.getElementById('scanner-call-result').style.display='none';
+  const dbResult  = document.getElementById('scanner-db-result');
+  const dbContent = document.getElementById('scanner-db-content');
+
+  if(r.nothing_found){
+    setScannerStatus('⚠ Nothing detected. Open the MDT panel in your game.');
+    dbContent.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);">No data found.</div>';
+    dbResult.style.display='block';
+    return;
+  }
+
+  const warrantActive = r.warrant&&r.warrant.active;
+  const stolen        = r.vehicle&&r.vehicle.stolen;
+  const insExpired    = r.insurance&&r.insurance.status&&r.insurance.status.toLowerCase().includes('expir');
+  const licBad        = r.person&&r.person.license_status&&/(susp|revok|expir)/i.test(r.person.license_status);
+
+  const alertBanner = (warrantActive||stolen) ? `<div style="background:rgba(204,34,51,.15);border:1px solid var(--red);padding:8px 12px;border-radius:2px;margin-bottom:10px;font-family:var(--mono);font-size:11px;color:var(--red);">
+    ${warrantActive?'⚠ ACTIVE WARRANT — DETAIN SUBJECT<br>':''} ${stolen?'⚠ STOLEN VEHICLE':''}</div>` : '';
+
+  const rows = [
+    r.person&&r.person.name           ? ['SUBJECT',      r.person.name,         '']         : null,
+    r.person&&r.person.dob            ? ['DOB',          r.person.dob,           '']         : null,
+    r.person&&r.person.license        ? ['DL #',         r.person.license,       '']         : null,
+    r.person&&r.person.license_status ? ['DL STATUS',    r.person.license_status, licBad?'hit':'clear'] : null,
+    r.vehicle&&r.vehicle.plate        ? ['PLATE',        r.vehicle.plate,         '']         : null,
+    r.vehicle&&r.vehicle.make         ? ['VEHICLE',      [r.vehicle.year,r.vehicle.make,r.vehicle.model,r.vehicle.color].filter(Boolean).join(' '),''] : null,
+    r.vehicle                         ? ['STOLEN',       r.vehicle.stolen?'YES — STOLEN':'NOT REPORTED', r.vehicle.stolen?'hit':'clear'] : null,
+    r.insurance&&r.insurance.status   ? ['INSURANCE',    r.insurance.status+(r.insurance.expires?' ('+r.insurance.expires+')':''),(insExpired?'hit':'clear')] : null,
+    r.warrant                         ? ['WARRANT',      r.warrant.active?('ACTIVE — '+(r.warrant.type||'')):('NONE ON FILE'), r.warrant.active?'hit':'clear'] : null,
+    r.warrant&&r.warrant.charge       ? ['CHARGE',       r.warrant.charge, 'hit']  : null,
+    ...(r.flags||[]).map(f=>['FLAG', f, 'hit']),
+    r.notes&&r.notes.length           ? ['NOTES',        r.notes,                 '']         : null,
+  ].filter(Boolean);
+
+  setScannerStatus('✓ Database read complete.');
+  dbContent.innerHTML = alertBanner + rows.map(([k,v,cls])=>`
+    <div class="db-result-row"><div class="drk">${k}</div><div class="drv ${cls}">${v}</div></div>`).join('')
+    + `<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+        ${r.person&&r.person.name ?`<button class="mdt-btn" onclick="autofillPersonQuery('${(r.person.name||'').replace(/'/g,"\'")}')" >↗ QUERY PERSON</button>`:''}
+        ${warrantActive?`<button class="mdt-btn danger" onclick="openWarrantModalFor('${((r.person&&r.person.name)||'UNKNOWN').replace(/'/g,"\'")}')" >ISSUE WARRANT</button>`:''}
+        ${r.vehicle&&r.vehicle.plate?`<button class="mdt-btn" onclick="autofillPlateQuery('${(r.vehicle.plate||'').replace(/'/g,"\'")}')" >↗ QUERY PLATE</button>`:''}
+       </div>`;
+  dbResult.style.display='block';
+}
+
+/* ── Auto-fill helpers ───────────────────────────────────── */
+function autofillPersonQuery(name){
+  closeScanner();
+  const personNav = document.querySelector('[data-pane="pane-query"]');
+  if(personNav) switchPane(personNav);
+  const parts = name.split(',').map(s=>s.trim());
+  if(parts.length>=2){ document.getElementById('inp-last').value=parts[0]; document.getElementById('inp-first').value=parts[1]; }
+  else { document.getElementById('inp-last').value=name; }
+  runQuery();
+}
+
+function autofillPlateQuery(plate){
+  closeScanner();
+  const tabEl = document.querySelector('.tab[data-tab="1"]');
+  if(tabEl) switchTab(tabEl,1);
+  const personNav = document.querySelector('[data-pane="pane-query"]');
+  if(personNav) switchPane(personNav);
+  document.getElementById('inp-plate').value = plate;
+  runVehicleQuery();
+}
+
+/* ── Scanner overlay helpers ─────────────────────────────── */
+function openScanner(mode){
+  scannerMode = mode;
+  document.getElementById('scanner-overlay').classList.add('visible');
+  document.getElementById('scanner-mode-label').textContent = 'MODE: '+(mode==='calls'?'CALL QUEUE':'DATABASE / PLATE');
+  document.getElementById('scanner-call-result').style.display='none';
+  document.getElementById('scanner-db-result').style.display='none';
+  setScannerStatus('Processing…');
+  const canvas = document.getElementById('scanner-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width=400; canvas.height=100;
+  ctx.fillStyle='#080d12'; ctx.fillRect(0,0,400,100);
+  ctx.fillStyle='#2a4060'; ctx.font='11px monospace';
+  ctx.fillText('Capturing…',10,55);
+}
+
+function closeScanner(){
+  document.getElementById('scanner-overlay').classList.remove('visible');
+  scannerMode = null;
+}
+
+function setScannerStatus(msg){
+  const el = document.getElementById('scanner-status');
+  if(el) el.textContent = msg;
+}
+
+/* ── Respond / dismiss calls ─────────────────────────────── */
+function respondToCall(idx){
+  if(!pendingCalls[idx]){ closeScanner(); return; }
+  const call = pendingCalls[idx];
+  incidents.push({
+    id: 'CCSO'+padZ(randInt(1,9999),4)+'-'+new Date().getFullYear(),
+    type: call.type||'Unknown Call',
+    loc: call.address||'Unknown Location',
+    subject: 'UNKNOWN',
+    dispo: 'Pending Investigation',
+    date: fmtNow(),
+    officer: 'R. MALLORY #2247'
+  });
   renderIncidents();
-  closeModal();
-  showToast('Incident report submitted — Case #'+incidents[incidents.length-1].id);
   callsThisShift++;
   document.getElementById('calls-count').textContent = callsThisShift;
+  const btn97 = document.querySelector('.status-btn[data-code="10-97"]');
+  if(btn97) setMyStatus('10-97','ON SCENE',btn97);
+
+  const card = document.getElementById('scall-'+idx);
+  if(card){ card.style.borderLeftColor='var(--green)'; card.querySelector('.scc-type').innerHTML='✓ RESPONDING — '+call.type; }
+
+  pendingCalls.splice(idx,1);
+  renderCAD(pendingCalls);
+  lastCallHash = ''; // allow re-detection after responding
+  showToast('CCSO-247 responding: '+call.type+' @ '+(call.address||'location'));
+  setTimeout(closeScanner, 1600);
 }
 
-function renderIncidents(){
-  const list = document.getElementById('incident-list');
-  if(!incidents.length){
-    list.innerHTML = `<div class="no-result">NO INCIDENT REPORTS THIS SESSION</div>`;
-    return;
-  }
-  list.innerHTML = incidents.map(inc=>`
-    <div class="queue-item">
-      <div class="qi-main">
-        <div class="qi-subject">${inc.type}</div>
-        <div class="qi-detail">${inc.loc}</div>
-        <div class="qi-detail" style="margin-top:3px;">SUBJECT: ${inc.subject} &nbsp;|&nbsp; DISPO: ${inc.dispo}</div>
-      </div>
-      <div class="qi-meta">
-        <span class="tag i">FILED</span><br>
-        ${inc.id}<br>
-        ${inc.date}
-      </div>
-    </div>`).join('');
-}
-renderIncidents();
-
-/* ─── GENERIC MODAL ─────────────────────────────────────── */
-function openModal(title, bodyHTML, buttons, danger=false){
-  document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-body').innerHTML = bodyHTML;
-  document.getElementById('modal-box').className = 'modal'+(danger?' danger-border':'');
-  const foot = document.getElementById('modal-foot');
-  foot.innerHTML = buttons.map(b=>`<button class="mdt-btn ${b.cls}" onclick="${b.fn}">${b.label}</button>`).join('');
-  document.getElementById('modal-backdrop').classList.add('visible');
-}
-function closeModal(){
-  document.getElementById('modal-backdrop').classList.remove('visible');
+function dismissCall(idx){
+  if(!pendingCalls[idx]) return;
+  const card = document.getElementById('scall-'+idx);
+  if(card){ card.style.opacity='0.3'; card.style.borderLeftColor='var(--red)'; }
+  pendingCalls.splice(idx,1);
+  renderCAD(pendingCalls);
+  setTimeout(()=>renderScannedCalls(pendingCalls), 300);
 }
 
-// Close modal on backdrop click
-document.getElementById('modal-backdrop').addEventListener('click', function(e){
-  if(e.target === this) closeModal();
-});
 
-// Enter key on query inputs
-['inp-last','inp-first','inp-dob','inp-dl'].forEach(id=>{
-  const el = document.getElementById(id);
-  if(el) el.addEventListener('keydown', e=>{ if(e.key==='Enter') runQuery(); });
-});
-
-/* ─── MY STATUS ─────────────────────────────────────────── */
-let panicActive = false;
-
-function setMyStatus(code, label, btnEl){
-  // If panic is active, cancel it first
-  if(panicActive) cancelPanic();
-
-  // Reset all status button styles
-  document.querySelectorAll('.status-btn').forEach(b=>{
-    b.style.border = '1px solid var(--border-lit)';
-    b.style.background = 'transparent';
-    b.style.color = 'var(--text-sec)';
-  });
-
-  // Highlight selected
-  const colors = { '10-8': 'var(--green)', '10-6': 'var(--yellow)', '10-7': '#666', '10-97': 'var(--orange)' };
-  const col = colors[code] || 'var(--accent)';
-  btnEl.style.border = `1px solid ${col}`;
-  btnEl.style.background = `rgba(255,255,255,.06)`;
-  btnEl.style.color = col;
-
-  // Update badge in unit list
-  const badge = document.getElementById('my-unit-stat-badge');
-  badge.textContent = code;
-  badge.style.color = col;
-  badge.style.background = `rgba(255,255,255,.05)`;
-
-  // Update status label in nav
-  document.getElementById('my-status-label').textContent = `${code} ${label}`;
-
-  showToast(`Status updated — ${code} ${label}`);
-}
-
-function triggerPanic(){
-  if(panicActive){ cancelPanic(); return; }
-  panicActive = true;
-  document.body.classList.add('panic-mode');
-
-  // Update unit badge
-  const badge = document.getElementById('my-unit-stat-badge');
-  badge.textContent = '!! PANIC';
-  badge.style.color = '#fff';
-  badge.style.background = 'var(--red)';
-
-  document.getElementById('my-status-label').textContent = '!! PANIC ALARM ACTIVE';
-  document.getElementById('panic-btn').textContent = '⚠ CANCEL PANIC';
-
-  // Show big panic toast
-  const t = document.getElementById('toast');
-  t.textContent = '⚠ PANIC ALARM TRANSMITTED — CCSO-247 — DISPATCH NOTIFIED';
-  t.className = 'show err';
-  // keep it up while panic is active
-
-  // Reset all status buttons
-  document.querySelectorAll('.status-btn').forEach(b=>{
-    b.style.border = '1px solid var(--border-lit)';
-    b.style.background = 'transparent';
-    b.style.color = 'var(--text-sec)';
-  });
-}
-
-function cancelPanic(){
-  panicActive = false;
-  document.body.classList.remove('panic-mode');
-
-  const badge = document.getElementById('my-unit-stat-badge');
-  badge.textContent = '10-8';
-  badge.style.color = 'var(--green)';
-  badge.style.background = 'rgba(29,185,84,.15)';
-
-  document.getElementById('my-status-label').textContent = '10-8 AVAILABLE';
-  document.getElementById('panic-btn').textContent = '⚠ PANIC ALARM';
-
-  // Re-highlight 10-8 button
-  const avail = document.querySelector('.status-btn[data-code="10-8"]');
-  if(avail){
-    avail.style.border = '1px solid var(--green)';
-    avail.style.background = 'rgba(29,185,84,.15)';
-    avail.style.color = 'var(--green)';
-  }
-
-  const t = document.getElementById('toast');
-  t.className = '';
-  showToast('Panic alarm cancelled — status reset to 10-8');
-}
-
-/* ─── PAGE UP KEY → PANIC ───────────────────────────────── */
-document.addEventListener('keydown', function(e){
-  if(e.key === 'PageUp'){
-    e.preventDefault();
-    triggerPanic();
-  }
-});
 </script>
 </body>
 </html>
