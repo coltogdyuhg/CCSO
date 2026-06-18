@@ -759,7 +759,7 @@ function runQuery(){
     }
     const person = generatePerson(first, last);
     dbSave(person);
-    renderPersonResult(person);
+    renderPersonResult(person, '');
   }, randInt(900,2000));
 }
 
@@ -792,7 +792,7 @@ function generatePerson(first,last){
   };
 }
 
-function renderPersonResult(p, extraBanner=){
+function renderPersonResult(p, extraBanner){
   const ra=document.getElementById('result-area');
   let badges='';
   if(p.hasW) badges+=`<span class="badge warrant">⚠ ACTIVE WARRANT</span>`;
@@ -810,7 +810,7 @@ function renderPersonResult(p, extraBanner=){
     ? `<div class="section-head" style="margin-top:12px;">PRIOR CRIMINAL HISTORY (${p.priors.length} RECORD${p.priors.length!==1?'S':''})</div><table class="rec-table"><thead><tr><th>CHARGE</th><th>AGENCY</th><th>DATE</th><th>DISPOSITION</th><th>CASE #</th></tr></thead><tbody>${priorRows}</tbody></table>`
     : `<div class="no-result" style="margin-top:12px;">NO PRIOR CRIMINAL HISTORY ON FILE</div>`;
 
-  ra.innerHTML=`${extraBanner}<div style="font-family:var(--mono);font-size:9px;color:var(--green);margin-bottom:10px;margin-top:4px;">✓ QUERY COMPLETE — RECORD LOCATED — ${fmtNow()} — NCIC/STATE REPOSITORY</div>
+  ra.innerHTML=`${extraBanner||''}<div style="font-family:var(--mono);font-size:9px;color:var(--green);margin-bottom:10px;margin-top:4px;">✓ QUERY COMPLETE — RECORD LOCATED — ${fmtNow()} — NCIC/STATE REPOSITORY</div>
   <div class="result-card ${p.hasW?'warrant-active':p.nP===0?'clean':''}">
     <div class="rc-header">
       <div><div class="rc-name">${p.last}, ${p.first}</div><div class="rc-dob">DOB: ${p.dob} &nbsp;|&nbsp; RACE/SEX: ${p.race} &nbsp;|&nbsp; DL: ${p.dlNum}</div></div>
