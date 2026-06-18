@@ -380,6 +380,7 @@
     <div class="nav-section-label">Actions</div>
     <div class="nav-item" onclick="openWarrantModal()"><span class="ni">➕</span> Issue Warrant</div>
     <div class="nav-item" onclick="openCiteModal()"><span class="ni">📝</span> Write Citation</div>
+    <div class="nav-item" onclick="openSavedRecords()"><span class="ni">💾</span> Saved Records</div>
     <div class="nav-item" onclick="openIncidentModal()"><span class="ni">📁</span> New Incident</div>
     <div id="unit-badge">
       <div class="ub-unit">CCSO-247</div>
@@ -696,6 +697,43 @@ function clearResults(){
   ra.innerHTML=''; ra.className='';
 }
 
+/* ═══ PERSISTENT PERSON DATABASE ════════════════════════
+   Saves scanned/queried people to localStorage so the same
+   person always returns the same record.
+═════════════════════════════════════════════════════════ */
+function dbKey(first, last){
+  return 'ccso_person_' + (last+first).toUpperCase().replace(/[^A-Z]/g,'');
+}
+
+function dbSave(person){
+  try {
+    const key = dbKey(person.first, person.last);
+    localStorage.setItem(key, JSON.stringify(person));
+  } catch(e){ /* storage blocked, just skip */ }
+}
+
+function dbLoad(first, last){
+  try {
+    const key = dbKey(first, last);
+    const raw = localStorage.getItem(key);
+    if(raw) return JSON.parse(raw);
+  } catch(e){}
+  return null;
+}
+
+function dbList(){
+  const people = [];
+  try {
+    for(let i=0; i<localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith('ccso_person_')){
+        try { people.push(JSON.parse(localStorage.getItem(k))); } catch(e){}
+      }
+    }
+  } catch(e){}
+  return people;
+}
+
 function runQuery(){
   const last =document.getElementById('inp-last').value.trim().toUpperCase()||rand(lastNames);
   const first=document.getElementById('inp-first').value.trim().toUpperCase()||rand(firstNames);
@@ -703,11 +741,25 @@ function runQuery(){
   const lo=document.getElementById('loading-overlay'); lo.classList.add('visible');
   setTimeout(()=>{
     lo.classList.remove('visible');
+
+    // Check persistent DB first — if we scanned this person before, show same record
+    const saved = dbLoad(first, last);
+    if(saved){
+      const ra = document.getElementById('result-area');
+      const fromDB = `<div style="font-family:var(--mono);font-size:9px;color:var(--yellow);margin-bottom:6px;margin-top:4px;">
+        ★ RECORD ON FILE — PREVIOUSLY SCANNED — ${fmtNow()}</div>`;
+      renderPersonResult(saved, fromDB);
+      return;
+    }
+
+    // Not in DB — generate new random record and save it
     if(Math.random()<.1){
       document.getElementById('result-area').innerHTML=`<div class="no-result">⚠ QUERY COMPLETE — NO RECORD FOUND IN NCIC/STATE REPOSITORY<br><span style="color:var(--text-dim);font-size:10px;margin-top:4px;display:block">NAME: ${first} ${last} | CHECKED AT ${fmtNow()}</span></div>`;
       return;
     }
-    renderPersonResult(generatePerson(first,last));
+    const person = generatePerson(first, last);
+    dbSave(person);
+    renderPersonResult(person);
   }, randInt(900,2000));
 }
 
@@ -740,7 +792,7 @@ function generatePerson(first,last){
   };
 }
 
-function renderPersonResult(p){
+function renderPersonResult(p, extraBanner=){
   const ra=document.getElementById('result-area');
   let badges='';
   if(p.hasW) badges+=`<span class="badge warrant">⚠ ACTIVE WARRANT</span>`;
@@ -758,7 +810,7 @@ function renderPersonResult(p){
     ? `<div class="section-head" style="margin-top:12px;">PRIOR CRIMINAL HISTORY (${p.priors.length} RECORD${p.priors.length!==1?'S':''})</div><table class="rec-table"><thead><tr><th>CHARGE</th><th>AGENCY</th><th>DATE</th><th>DISPOSITION</th><th>CASE #</th></tr></thead><tbody>${priorRows}</tbody></table>`
     : `<div class="no-result" style="margin-top:12px;">NO PRIOR CRIMINAL HISTORY ON FILE</div>`;
 
-  ra.innerHTML=`<div style="font-family:var(--mono);font-size:9px;color:var(--green);margin-bottom:10px;margin-top:4px;">✓ QUERY COMPLETE — RECORD LOCATED — ${fmtNow()} — NCIC/STATE REPOSITORY</div>
+  ra.innerHTML=`${extraBanner}<div style="font-family:var(--mono);font-size:9px;color:var(--green);margin-bottom:10px;margin-top:4px;">✓ QUERY COMPLETE — RECORD LOCATED — ${fmtNow()} — NCIC/STATE REPOSITORY</div>
   <div class="result-card ${p.hasW?'warrant-active':p.nP===0?'clean':''}">
     <div class="rc-header">
       <div><div class="rc-name">${p.last}, ${p.first}</div><div class="rc-dob">DOB: ${p.dob} &nbsp;|&nbsp; RACE/SEX: ${p.race} &nbsp;|&nbsp; DL: ${p.dlNum}</div></div>
@@ -1372,6 +1424,9 @@ function runScanQuery(scanData){
 
   const person = generatePersonFromScan(first, last, arrestCount, isWanted);
 
+  // Save to persistent DB so future searches return same record
+  dbSave(person);
+
   // Switch to person query pane and show result
   const pane = document.querySelector('[data-pane="pane-query"]');
   if(pane) switchPane(pane);
@@ -1382,7 +1437,9 @@ function runScanQuery(scanData){
   lo.classList.add('visible');
   setTimeout(()=>{
     lo.classList.remove('visible');
-    renderPersonResult(person);
+    const banner = `<div style="font-family:var(--mono);font-size:9px;color:var(--accent);margin-bottom:6px;margin-top:4px;">
+      ⬛ RECORD GENERATED FROM GAME MDT SCAN — SAVED TO LOCAL DATABASE — ${fmtNow()}</div>`;
+    renderPersonResult(person, banner);
   }, 800);
 }
 
@@ -1654,6 +1711,49 @@ function cancelPanic(){
   document.getElementById('panic-btn').textContent='⚠ PANIC ALARM';
   document.getElementById('toast').className='';
   showToast('Panic cancelled — status 10-8');
+}
+
+/* ═══ SAVED RECORDS BROWSER ══════════════════════════════ */
+function openSavedRecords(){
+  const people = dbList();
+  if(!people.length){
+    openModal('SAVED RECORDS — LOCAL DATABASE',
+      '<div class="no-result" style="margin:0;">No saved records yet.<br><span style="font-size:10px;color:var(--text-dim);display:block;margin-top:6px;">Records are saved automatically when you scan the game MDT or run a person query.</span></div>',
+      [{label:'CLOSE',cls:'',fn:'closeModal()'}]);
+    return;
+  }
+  // Sort by last name
+  people.sort((a,b)=>(a.last+a.first).localeCompare(b.last+b.first));
+  const rows = people.map(p=>`
+    <div class="queue-item" style="cursor:pointer;" onclick="loadSavedPerson('${p.last}','${p.first}')">
+      <div class="qi-main">
+        <div class="qi-subject">${p.last}, ${p.first}</div>
+        <div class="qi-detail">DOB: ${p.dob} &nbsp;|&nbsp; ${p.race} &nbsp;|&nbsp; ${p.nP} prior${p.nP!==1?'s':''}</div>
+        <div class="qi-detail" style="margin-top:2px;">${p.addr}</div>
+      </div>
+      <div class="qi-meta">
+        ${p.hasW?'<span class="tag w">WARRANT</span>':'<span class="tag x">CLEAR</span>'}
+        <br><span style="font-size:9px;color:var(--text-dim);cursor:pointer;" onclick="event.stopPropagation();deleteSavedPerson('${p.last}','${p.first}')">🗑 delete</span>
+      </div>
+    </div>`).join('');
+  openModal('SAVED RECORDS — LOCAL DATABASE ('+people.length+')',
+    `<div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-bottom:10px;">Click any record to pull it up. Records persist in your browser storage.</div>
+     <div class="queue-list">${rows}</div>`,
+    [{label:'CLOSE',cls:'',fn:'closeModal()'}]);
+}
+
+function loadSavedPerson(last, first){
+  closeModal();
+  const pane = document.querySelector('[data-pane="pane-query"]');
+  if(pane) switchPane(pane);
+  document.getElementById('inp-last').value  = last;
+  document.getElementById('inp-first').value = first;
+  runQuery();
+}
+
+function deleteSavedPerson(last, first){
+  try { localStorage.removeItem(dbKey(first, last)); } catch(e){}
+  openSavedRecords(); // refresh
 }
 
 /* ═══ STARTUP ════════════════════════════════════════════ */
