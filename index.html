@@ -373,6 +373,9 @@
     <div class="nav-item" id="nav-scan-mdt" onclick="scanGameMDT()" style="opacity:.45;pointer-events:none;">
       <span class="ni">🔎</span> Scan Game MDT
     </div>
+    <div class="nav-item" onclick="promptForApiKey(null)">
+      <span class="ni">🔑</span> <span id="apikey-label">Set API Key</span>
+    </div>
     <hr class="nav-divider">
     <div class="nav-section-label">Actions</div>
     <div class="nav-item" onclick="openWarrantModal()"><span class="ni">➕</span> Issue Warrant</div>
@@ -814,49 +817,99 @@ function runVehicleQuery(){
    Watches the Flashing Lights game screen every 8 seconds.
    When new calls appear, shows the call alert overlay.
 ═════════════════════════════════════════════════════════ */
-async function toggleWatcher(){
+// toggleWatcher is called directly from onclick — must be sync entry point
+// so Chrome allows getDisplayMedia. Do NOT await anything before the
+// getDisplayMedia call or Chrome will block it silently.
+function toggleWatcher(){
   if(watcherActive){ stopWatcher(); return; }
-  await startWatcher();
+  // Step 1: fire screen share IMMEDIATELY (must be synchronous click handler)
+  _requestScreenThenStart();
 }
 
-async function startWatcher(){
+async function _requestScreenThenStart(){
+  // If we already have a stream, skip straight to starting
   if(!screenStream){
     try {
-      setWatcherStatus('Requesting screen share…');
       screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video:{ frameRate:1, cursor:'never' }, audio:false
-      });
-      screenVideo = document.createElement('video');
-      screenVideo.muted=true;
-      screenVideo.style.cssText='position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;';
-      document.body.appendChild(screenVideo);
-      screenVideo.srcObject=screenStream;
-      await screenVideo.play();
-      screenStream.getVideoTracks()[0].addEventListener('ended',()=>{
-        screenStream=null; if(screenVideo){screenVideo.remove();screenVideo=null;}
-        stopWatcher(); showToast('Screen share ended — watcher stopped.','err');
+        video:{ frameRate: 2, width:{ideal:1920}, height:{ideal:1080} },
+        audio: false
       });
     } catch(e){
-      if(e.name!=='NotAllowedError') showToast('Could not share screen: '+e.message,'err');
+      if(e.name==='NotAllowedError'||e.name==='AbortError'){
+        showToast('Screen share cancelled — click Watch Game Screen to try again.','err');
+      } else {
+        showToast('Screen share failed: '+e.message,'err');
+      }
       return;
     }
+
+    // Attach to hidden video element
+    if(screenVideo){ screenVideo.remove(); screenVideo=null; }
+    screenVideo = document.createElement('video');
+    screenVideo.muted = true;
+    screenVideo.playsInline = true;
+    screenVideo.style.cssText = 'position:fixed;width:1px;height:1px;top:-9999px;left:-9999px;opacity:0;pointer-events:none;';
+    document.body.appendChild(screenVideo);
+    screenVideo.srcObject = screenStream;
+    try { await screenVideo.play(); } catch(e){ showToast('Video play failed: '+e.message,'err'); return; }
+
+    screenStream.getVideoTracks()[0].addEventListener('ended', ()=>{
+      screenStream=null;
+      if(screenVideo){ screenVideo.remove(); screenVideo=null; }
+      stopWatcher();
+      showToast('Screen share ended.','err');
+    });
   }
-  watcherActive=true;
+
+  // Step 2: now check API key — AFTER screen share is set up
+  if(!getApiKey()){
+    // Show key modal but keep the stream alive
+    promptForApiKey(()=>_activateWatcher());
+    return;
+  }
+
+  _activateWatcher();
+}
+
+function _activateWatcher(){
+  watcherActive = true;
   document.getElementById('watcher-bar').classList.add('visible');
-  document.getElementById('watch-label').textContent='Stop Watching';
-  document.getElementById('watch-icon').textContent='🟢';
-  document.querySelector('[data-pane="pane-query"]').closest('nav').querySelector('#nav-scan-mdt').style.opacity='1';
-  document.querySelector('[data-pane="pane-query"]').closest('nav').querySelector('#nav-scan-mdt').style.pointerEvents='auto';
-  document.getElementById('cad-live-badge').textContent='● LIVE';
-  document.getElementById('cad-live-badge').style.color='var(--green)';
-  showToast('Screen watcher started — monitoring your game for calls.');
+  document.getElementById('watch-label').textContent = 'Stop Watching';
+  document.getElementById('watch-icon').textContent = '🟢';
+  document.getElementById('nav-scan-mdt').style.opacity = '1';
+  document.getElementById('nav-scan-mdt').style.pointerEvents = 'auto';
+  document.getElementById('cad-live-badge').textContent = '● LIVE';
+  document.getElementById('cad-live-badge').style.color = 'var(--green)';
+  showToast('Screen watcher started — scans every 30 seconds.');
   runWatchCycle();
-  watcherInterval=setInterval(runWatchCycle,8000);
+  watcherInterval = setInterval(runWatchCycle, 30000);
+  // Start countdown display
+  startCountdown(30);
+}
+
+let _countdownInterval = null;
+function startCountdown(seconds){
+  if(_countdownInterval) clearInterval(_countdownInterval);
+  let remaining = seconds;
+  setWatcherStatus('Next scan in '+remaining+'s…');
+  _countdownInterval = setInterval(()=>{
+    if(!watcherActive){ clearInterval(_countdownInterval); return; }
+    remaining--;
+    if(remaining <= 0){
+      clearInterval(_countdownInterval);
+      setWatcherStatus('Scanning screen…','wb-scanning');
+    } else {
+      setWatcherStatus('Next scan in '+remaining+'s…');
+    }
+  }, 1000);
 }
 
 function stopWatcher(){
-  watcherActive=false;
-  clearInterval(watcherInterval); watcherInterval=null;
+  watcherActive = false;
+  isAnalyzing = false;
+  clearInterval(watcherInterval); watcherInterval = null;
+  if(screenStream){ screenStream.getTracks().forEach(t=>t.stop()); screenStream=null; }
+  if(screenVideo){ screenVideo.remove(); screenVideo=null; }
   document.getElementById('watcher-bar').classList.remove('visible');
   document.getElementById('watch-label').textContent='Watch Game Screen';
   document.getElementById('watch-icon').textContent='📺';
@@ -876,7 +929,7 @@ function setWatcherStatus(msg, cls=''){
 async function runWatchCycle(){
   if(!watcherActive||isAnalyzing||!screenStream||!screenVideo||screenVideo.readyState<2) return;
   isAnalyzing=true;
-  setWatcherStatus('Scanning…','wb-scanning');
+  setWatcherStatus('Scanning screen…','wb-scanning');
 
   try {
     const frame = captureFrame('calls');
@@ -910,10 +963,18 @@ If no call queue is visible or no calls exist, return: {"calls":[]}`;
       setWatcherStatus('Up to date','');
     }
   } catch(e){
-    setWatcherStatus('Scan error: '+e.message.substring(0,40),'');
+    const msg = e.message||'Unknown error';
+    setWatcherStatus('Error: '+msg.substring(0,50),'');
+    showToast('Watcher error: '+msg.substring(0,80), 'err');
     console.error('Watch cycle error:',e);
+    // If it's a key problem, prompt again
+    if(msg.includes('key')||msg.includes('API')||msg.includes('401')||msg.includes('403')){
+      stopWatcher();
+      promptForApiKey(()=>startWatcher());
+    }
   }
   isAnalyzing=false;
+  if(watcherActive) startCountdown(30);
 }
 
 /* ── Capture frame from screen ───────────────────────── */
@@ -922,30 +983,176 @@ function captureFrame(cropMode){
   const vw=screenVideo.videoWidth, vh=screenVideo.videoHeight;
   const offCanvas=document.createElement('canvas');
   let sx=0,sy=0,sw=vw,sh=vh;
-  if(cropMode==='calls'){ sx=0; sy=Math.floor(vh*.1); sw=Math.floor(vw*.5); sh=Math.floor(vh*.8); }
-  else if(cropMode==='mdt'){ sx=Math.floor(vw*.4); sy=0; sw=Math.floor(vw*.6); sh=vh; }
-  offCanvas.width=sw; offCanvas.height=sh;
-  offCanvas.getContext('2d').drawImage(screenVideo,sx,sy,sw,sh,0,0,sw,sh);
-  return offCanvas.toDataURL('image/jpeg',0.85);
+
+  if(cropMode==='calls'){
+    // Left half of screen — call queue in Flashing Lights is top-left area
+    sx=0; sy=0; sw=Math.floor(vw*.5); sh=vh;
+  } else if(cropMode==='mdt'){
+    // Full right half — MDT can be small or up to half the screen on the right
+    sx=Math.floor(vw*.5); sy=0; sw=Math.floor(vw*.5); sh=vh;
+  }
+
+  // Scale down large captures so they don't exceed API limits (~4MB)
+  let drawW=sw, drawH=sh;
+  const maxDim=1280;
+  if(sw>maxDim||sh>maxDim){
+    const scale=Math.min(maxDim/sw, maxDim/sh);
+    drawW=Math.floor(sw*scale); drawH=Math.floor(sh*scale);
+  }
+  offCanvas.width=drawW; offCanvas.height=drawH;
+  offCanvas.getContext('2d').drawImage(screenVideo,sx,sy,sw,sh,0,0,drawW,drawH);
+  return offCanvas.toDataURL('image/jpeg',0.82);
 }
 
-/* ── Call Claude vision API ──────────────────────────── */
-async function analyzeWithAI(base64jpg,prompt){
-  const base64=base64jpg.split(',')[1];
-  const resp=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      model:'claude-sonnet-4-6', max_tokens:1000,
-      messages:[{role:'user',content:[
-        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
-        {type:'text',text:prompt}
-      ]}]
-    })
-  });
-  if(!resp.ok) throw new Error('API '+resp.status);
-  const data=await resp.json();
-  return data.content.map(b=>b.text||'').join('');
+/* ── API Key management (Google AI Studio — free) ───── */
+let _memKey = '';
+
+function getApiKey(){
+  if(_memKey) return _memKey;
+  try { const k=localStorage.getItem('ccso_gemini_key'); if(k) return k; } catch(e){}
+  try { const k=sessionStorage.getItem('ccso_gemini_key'); if(k) return k; } catch(e){}
+  return '';
+}
+function saveApiKey(key){
+  _memKey = key.trim();
+  try { localStorage.setItem('ccso_gemini_key', key.trim()); } catch(e){}
+  try { sessionStorage.setItem('ccso_gemini_key', key.trim()); } catch(e){}
+}
+function clearApiKey(){
+  _memKey = '';
+  try { localStorage.removeItem('ccso_gemini_key'); } catch(e){}
+  try { sessionStorage.removeItem('ccso_gemini_key'); } catch(e){}
+  showToast('API key cleared.','err');
+}
+
+function promptForApiKey(onSuccess){
+  const existing = getApiKey();
+  const body=`
+    <div style="font-family:var(--mono);font-size:11px;color:var(--text-sec);margin-bottom:4px;line-height:1.9;">
+      Uses <b style="color:var(--accent)">Google Gemini</b> — 100% free, no card, no phone number.
+    </div>
+    <div style="background:rgba(26,111,181,.12);border:1px solid var(--border-lit);border-radius:2px;padding:10px 14px;margin-bottom:12px;font-family:var(--mono);font-size:10px;color:var(--text-sec);line-height:2.1;">
+      <b style="color:var(--yellow)">HOW TO GET YOUR FREE KEY:</b><br>
+      1. Go to <b style="color:var(--accent)">aistudio.google.com</b> in a new tab<br>
+      2. Sign in with any Google account<br>
+      3. Click <b style="color:var(--green)">"Get API key"</b> in the top left<br>
+      4. Click <b style="color:var(--green)">"Create API key"</b><br>
+      5. Copy the key and paste it below
+    </div>
+    <div class="form-row">
+      <div class="form-col" style="width:100%">
+        <label>PASTE GEMINI API KEY HERE</label>
+        <input class="mdt-input" id="apikey-input" style="width:100%;font-size:12px;" type="text" placeholder="AIzaSy…" value="${existing}" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div id="apikey-test-result" style="font-family:var(--mono);font-size:10px;margin-top:8px;min-height:20px;"></div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:6px;">
+      ⚠ Keep your key private — never paste it in a chat or share it.
+    </div>`;
+  openModal('GEMINI API KEY — FREE SETUP', body, [
+    {label:'CANCEL', cls:'', fn:'closeModal()'},
+    {label:'TEST KEY', cls:'warn', fn:'testApiKey()'},
+    {label:'SAVE & GO', cls:'success', fn:'saveKeyAndContinue()'},
+  ]);
+  setTimeout(()=>{ const i=document.getElementById('apikey-input'); if(i){i.focus();i.select();} },100);
+  window._apiKeyCallback = onSuccess||null;
+}
+
+async function testApiKey(){
+  const val=(document.getElementById('apikey-input')||{}).value||'';
+  const res=document.getElementById('apikey-test-result');
+  if(!val.trim()){ if(res) res.innerHTML='<span style="color:var(--red)">Paste your key first.</span>'; return; }
+  if(res) res.innerHTML='<span style="color:var(--yellow)">⏳ Testing…</span>';
+  try {
+    const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${val.trim()}`;
+    const r=await fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:'Say the word OK and nothing else.'}]}],generationConfig:{maxOutputTokens:5,temperature:0}})
+    });
+    const data=await r.json();
+    if(r.ok){
+      if(res) res.innerHTML='<span style="color:var(--green)">✓ Key works! Click SAVE &amp; GO.</span>';
+    } else {
+      const msg=(data.error&&data.error.message)||JSON.stringify(data).substring(0,100);
+      const status=r.status;
+      let hint='';
+      if(status===400) hint='Key looks invalid — make sure you copied the whole thing.';
+      else if(status===403) hint='Access denied — make sure you are signed into aistudio.google.com and created the key there (not Google Cloud Console).';
+      else if(status===429) hint='Too many requests — wait 30 seconds and try again.';
+      else hint=`Error ${status} — try creating a new key at aistudio.google.com.`;
+      if(res) res.innerHTML=`<span style="color:var(--red)">✗ ${hint}</span><br><span style="font-family:var(--mono);font-size:9px;color:var(--text-dim)">${msg}</span>`;
+    }
+  } catch(e){
+    if(res) res.innerHTML=`<span style="color:var(--red)">✗ Network error: ${e.message}</span>`;
+  }
+}
+
+function saveKeyAndContinue(){
+  const val=(document.getElementById('apikey-input')||{}).value||'';
+  if(val.trim().length < 5){ showToast('Paste your key first.','err'); return; }
+  saveApiKey(val.trim());
+  closeModal();
+  showToast('API key saved.');
+  const lbl=document.getElementById('apikey-label');
+  if(lbl){ lbl.textContent='API Key: Set \u2713'; lbl.style.color='var(--green)'; }
+  if(window._apiKeyCallback) window._apiKeyCallback();
+}
+
+/* ── Call Gemini vision API (Google AI Studio free tier) ─ */
+async function analyzeWithAI(base64jpg, prompt){
+  const key = getApiKey();
+  if(!key) throw new Error('No API key — click Set API Key in the left menu.');
+  const base64 = base64jpg.split(',')[1];
+
+  // Try gemini-2.0-flash first, fall back to 1.5-flash
+  const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+  let lastError = '';
+
+  for(const model of models){
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inline_data: { mime_type: 'image/jpeg', data: base64 } },
+              { text: prompt }
+            ]
+          }],
+          generationConfig: { maxOutputTokens: 1000, temperature: 0 }
+        })
+      });
+
+      if(resp.status === 401 || resp.status === 403){
+        clearApiKey();
+        throw new Error('API key rejected — please re-enter your key.');
+      }
+      if(resp.status === 429){
+        // Rate limited — wait 15s then try next model
+        lastError = 'Rate limited on ' + model;
+        await new Promise(r => setTimeout(r, 15000));
+        continue;
+      }
+      if(!resp.ok){
+        const err = await resp.json().catch(()=>({}));
+        lastError = (err.error&&err.error.message)||'Status '+resp.status+' on '+model;
+        continue;
+      }
+
+      const data = await resp.json();
+      const text = data.candidates&&data.candidates[0]&&data.candidates[0].content&&
+                   data.candidates[0].content.parts&&data.candidates[0].content.parts.map(p=>p.text||'').join('');
+      if(text) return text;
+      lastError = 'Empty response from ' + model;
+    } catch(e){
+      if(e.message.includes('key rejected')) throw e;
+      lastError = e.message;
+    }
+  }
+  throw new Error('Gemini error: ' + lastError);
 }
 
 /* ═══ CALL ALERT OVERLAY ══════════════════════════════════ */
@@ -1009,51 +1216,107 @@ function renderCAD(calls){
 ═════════════════════════════════════════════════════════ */
 async function scanGameMDT(){
   if(!watcherActive){ showToast('Start the screen watcher first.','err'); return; }
+  if(!getApiKey()){ promptForApiKey(()=>scanGameMDT()); return; }
+
   const overlay=document.getElementById('scan-mdt-result');
-  const body=document.getElementById('smr-body');
+  const smrBody=document.getElementById('smr-body');
   const foot=document.getElementById('smr-foot');
   overlay.classList.add('visible');
-  body.innerHTML=`<div style="text-align:center;padding:30px 0;font-family:var(--mono);font-size:12px;color:var(--text-sec);"><div class="spinner"></div><br>Reading your game MDT panel…<br><span style="font-size:10px;color:var(--text-dim)">Make sure the in-game MDT is open and visible</span></div>`;
   foot.innerHTML='';
 
+  // Show a preview of what we captured so user can confirm it looks right
+  smrBody.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--text-sec);margin-bottom:10px;">
+    Capturing right side of screen — make sure your in-game MDT is open and visible...</div>
+    <canvas id="preview-canvas" style="max-width:100%;border:1px solid var(--border);border-radius:2px;display:block;margin-bottom:12px;"></canvas>
+    <div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-sec);">
+      <div class="spinner" style="display:inline-block;"></div> Reading MDT data…
+    </div>`;
+
   let frame;
-  try { frame=captureFrame('mdt'); }
-  catch(e){ body.innerHTML=`<div class="no-result">⚠ ${e.message}</div>`; return; }
-
-  const prompt=`You are reading a screenshot of the in-game MDT (Mobile Data Terminal) panel from the Steam police game "Flashing Lights". The MDT is usually on the right side of the screen when opened.
-
-Extract ALL visible information:
-- Person: name, date of birth, license/ID number, license status (valid/suspended/revoked/expired)
-- Vehicle: license plate, make, model, year, color
-- Stolen flag (yes/no)
-- Warrant status (active warrant? what for?)
-- Insurance status (valid/expired/none)
-- Registration status (valid/expired)
-- Any flags, alerts, cautions, or wanted notices
-- Any other relevant info displayed
-
-Return ONLY valid JSON, no markdown or extra text:
-{
-  "person":{"name":"","dob":"","license":"","license_status":"valid"},
-  "vehicle":{"plate":"","make":"","model":"","year":"","color":"","stolen":false,"reg_status":""},
-  "warrant":{"active":false,"type":"","charge":"","case_num":""},
-  "insurance":{"status":"","provider":""},
-  "flags":[],
-  "raw_notes":""
-}
-If the MDT panel is not visible or no relevant data is found, return: {"nothing_found":true}`;
-
-  let result;
   try {
-    const raw=await analyzeWithAI(frame,prompt);
-    result=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    frame = captureFrame('mdt');
+    // Show preview in the modal
+    const previewCanvas = document.getElementById('preview-canvas');
+    if(previewCanvas){
+      const img = new Image();
+      img.onload = ()=>{
+        previewCanvas.width = img.width;
+        previewCanvas.height = img.height;
+        previewCanvas.getContext('2d').drawImage(img,0,0);
+      };
+      img.src = frame;
+    }
   } catch(e){
-    body.innerHTML=`<div class="no-result">⚠ Could not read MDT. Make sure the in-game MDT database panel is open and fully visible on screen.</div>`;
+    smrBody.innerHTML=`<div class="no-result">⚠ ${e.message}</div>`;
     return;
   }
 
-  if(result.nothing_found){
-    body.innerHTML=`<div class="no-result">⚠ No MDT data detected. Open the database/MDT panel in Flashing Lights so it's clearly visible, then try again.</div>`;
+  const prompt=`You are reading a screenshot from the PC game "Flashing Lights" on Steam. This is a police game where the player uses an in-game MDT (Mobile Data Terminal) to look up people and vehicles.
+
+Look at the image carefully for ANY text that looks like a database result. The Flashing Lights MDT typically shows:
+- A person's NAME (first and last)
+- NUMBER OF ARRESTS (could say "Arrests: 3" or show a number)
+- WANTED status (could say "Wanted", "Warrant", "Wanted: Yes", a red warning, or similar)
+- Vehicle info: PLATE NUMBER, make, model
+- License status
+
+Extract everything you can see. Be very liberal — if you see ANY text at all, report it.
+
+Return ONLY valid JSON, no markdown:
+{
+  "person_name": "",
+  "arrests": 0,
+  "wanted": false,
+  "warrant_text": "",
+  "plate": "",
+  "vehicle": "",
+  "license_status": "",
+  "other_text": "",
+  "confidence": "high/medium/low",
+  "what_i_see": "brief description of what is visible in the image"
+}
+
+If you see literally nothing relevant, still return the JSON with what_i_see filled in describing what you DO see.`;
+
+  let result;
+  let rawResponse = '';
+  try {
+    rawResponse = await analyzeWithAI(frame, prompt);
+    const clean = rawResponse.replace(/```json|```/g,'').trim();
+    // Try to extract JSON even if there's extra text around it
+    const jsonMatch = clean.match(/\{[\s\S]*\}/);
+    if(!jsonMatch) throw new Error('No JSON found in response. AI said: ' + clean.substring(0,200));
+    result = JSON.parse(jsonMatch[0]);
+  } catch(e){
+    // Show the RAW AI response so we can see what it actually said
+    smrBody.innerHTML=`<div style="background:rgba(204,34,51,.08);border:1px solid var(--red);padding:12px 14px;border-radius:2px;margin-bottom:10px;">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--red);margin-bottom:8px;">⚠ SCAN ERROR: ${e.message.substring(0,100)}</div>
+    </div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-bottom:6px;letter-spacing:1px;">RAW AI RESPONSE (share this if asking for help):</div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);padding:10px;border-radius:2px;font-family:var(--mono);font-size:10px;color:var(--text-sec);word-break:break-all;max-height:150px;overflow-y:auto;">${rawResponse||'(no response — API call failed)'}</div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:10px;line-height:1.9;">
+      Make sure:<br>
+      1. You shared your FULL SCREEN or the GAME WINDOW when prompted<br>
+      2. The in-game MDT is open with a person searched<br>
+      3. The MDT panel is visible on the RIGHT side of screen
+    </div>`;
+    foot.innerHTML='<button class="mdt-btn warn" onclick="scanGameMDT()">TRY AGAIN</button><button class="mdt-btn" style="border-color:var(--border-lit);color:var(--text-sec);" onclick="closeMDTScan()">CLOSE</button>';
+    return;
+  }
+
+  // Even if nothing_found, if we got some data use it
+  if(result.nothing_found && !result.person_name && !result.plate && !result.arrests){
+    const reason = result.reason || result.what_i_see || 'Could not see MDT panel';
+    smrBody.innerHTML=`<div class="no-result">⚠ Could not read MDT data.<br>
+      <span style="font-size:10px;color:var(--text-dim);display:block;margin-top:6px;">
+      AI saw: <i>${reason}</i><br><br>
+      Tips:<br>
+      • Make sure the in-game MDT database result is fully visible<br>
+      • The MDT should be on the RIGHT side of your screen<br>
+      • Try making the MDT panel bigger in-game<br>
+      • Make sure you searched someone in the game first</span></div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:10px;">RAW AI RESPONSE: <span style="color:var(--text-sec)">${rawResponse.substring(0,300)}</span></div>`;
+    foot.innerHTML='<button class="mdt-btn warn" onclick="scanGameMDT()">TRY AGAIN</button><button class="mdt-btn" style="border-color:var(--border-lit);color:var(--text-sec);" onclick="closeMDTScan()">CLOSE</button>';
     return;
   }
 
@@ -1061,45 +1324,122 @@ If the MDT panel is not visible or no relevant data is found, return: {"nothing_
 }
 
 function renderMDTScanResult(r, foot){
-  const body=document.getElementById('smr-body');
-  const hasW=r.warrant&&r.warrant.active;
-  const stolen=r.vehicle&&r.vehicle.stolen;
-  const licBad=r.person&&r.person.license_status&&/(susp|revok|expir)/i.test(r.person.license_status);
-  const noIns =r.insurance&&r.insurance.status&&/(none|no |expired|not)/i.test(r.insurance.status);
-  const regBad=r.vehicle&&r.vehicle.reg_status&&/(expir)/i.test(r.vehicle.reg_status);
+  const smrBody = document.getElementById('smr-body');
 
-  let alerts='';
-  if(hasW||stolen){
-    alerts=`<div class="alert-strip">${hasW?`⚠ ACTIVE WARRANT — ${r.warrant.type||''} — DETAIN SUBJECT<br>CHARGE: ${r.warrant.charge||'See record'}<br>`:''}${stolen?'⚠ STOLEN VEHICLE — EXERCISE CAUTION':''}</div>`;
+  // Show what AI saw
+  const whatISee = r.what_i_see || r.raw_notes || '';
+  const confidence = r.confidence || 'low';
+  const confColor = confidence==='high'?'var(--green)':confidence==='medium'?'var(--yellow)':'var(--orange)';
+
+  // Build display rows from whatever was found
+  const rows = [];
+  if(r.person_name)    rows.push(['NAME',        r.person_name,    '']);
+  if(r.arrests!=null)  rows.push(['ARRESTS',      String(r.arrests), r.arrests>0?'hit':'ok']);
+  if(r.wanted!=null)   rows.push(['WANTED',       r.wanted?'YES — ACTIVE WARRANT':'NO', r.wanted?'hit':'ok']);
+  if(r.warrant_text)   rows.push(['WARRANT',      r.warrant_text,   'hit']);
+  if(r.plate)          rows.push(['PLATE',        r.plate,          '']);
+  if(r.vehicle)        rows.push(['VEHICLE',      r.vehicle,        '']);
+  if(r.license_status) rows.push(['LICENSE',      r.license_status, /susp|revok|expir/i.test(r.license_status)?'warn':'ok']);
+  if(r.other_text)     rows.push(['OTHER',        r.other_text,     '']);
+
+  smrBody.innerHTML = `
+    <div style="font-family:var(--mono);font-size:9px;color:var(--green);margin-bottom:10px;">✓ SCAN COMPLETE — ${fmtNow()}</div>
+    ${r.wanted?'<div class="alert-strip">⚠ ACTIVE WARRANT — SUBJECT IS WANTED</div>':''}
+    ${rows.length?'<div class="info-grid">'+rows.map(([k,v,c])=>`<div class="ig-key">${k}</div><div class="ig-val ${c}">${v}</div>`).join('')+'</div>':''}
+    <div style="margin-top:10px;font-family:var(--mono);font-size:9px;color:var(--text-dim);">
+      AI CONFIDENCE: <span style="color:${confColor}">${confidence.toUpperCase()}</span>
+      ${whatISee?` &nbsp;|&nbsp; ${whatISee}`:''}
+    </div>`;
+
+  // Build footer buttons
+  const btns = [];
+
+  // If we got a name, offer to run NCIC query with matching history
+  if(r.person_name){
+    btns.push(`<button class="mdt-btn success" onclick="runScanQuery(${JSON.stringify(r).replace(/"/g,'&quot;')})">▶ RUN NCIC QUERY</button>`);
+  }
+  if(r.plate){
+    btns.push(`<button class="mdt-btn" onclick="autofillPlate('${r.plate.replace(/'/g,"\'")}')">↗ QUERY PLATE</button>`);
+  }
+  btns.push(`<button class="mdt-btn" style="border-color:var(--border-lit);color:var(--text-sec);" onclick="closeMDTScan()">CLOSE</button>`);
+  foot.innerHTML = btns.join('');
+}
+
+// Run NCIC query using data from the game MDT scan
+// Generates history that matches what the game showed (arrest count, wanted status)
+function runScanQuery(scanData){
+  closeMDTScan();
+
+  // Parse name
+  const nameParts = (scanData.person_name||'UNKNOWN SUBJECT').trim().toUpperCase().split(/\s+/);
+  const first = nameParts.length > 1 ? nameParts.slice(1).join(' ') : rand(firstNames);
+  const last  = nameParts[0] || rand(lastNames);
+
+  // Generate a person whose history matches the game MDT
+  const arrestCount = parseInt(scanData.arrests) || 0;
+  const isWanted    = !!scanData.wanted;
+
+  const person = generatePersonFromScan(first, last, arrestCount, isWanted);
+
+  // Switch to person query pane and show result
+  const pane = document.querySelector('[data-pane="pane-query"]');
+  if(pane) switchPane(pane);
+  document.getElementById('inp-last').value  = last;
+  document.getElementById('inp-first').value = first;
+
+  const lo = document.getElementById('loading-overlay');
+  lo.classList.add('visible');
+  setTimeout(()=>{
+    lo.classList.remove('visible');
+    renderPersonResult(person);
+  }, 800);
+}
+
+// Generate a person with history that matches what the game MDT showed
+function generatePersonFromScan(first, last, numArrests, isWanted){
+  // Build prior record matching the arrest count from the game
+  const priors = [];
+  for(let i = 0; i < numArrests; i++){
+    priors.push({
+      date:   randDate(2015, 2024),
+      charge: rand(CRIMES),
+      agency: rand(['RPD','PGPD','MSP','CCSO','FBI']),
+      case:   'CP-'+randInt(1,99).toString().padStart(2,'0')+'-CR-'+randInt(1000000,9999999),
+      dispo:  rand(['GUILTY PLEA','CONVICTED','NOLLE PROSEQUI','PROBATION','DISMISSED']),
+    });
   }
 
-  const rows=[];
-  if(r.person?.name)           rows.push(['SUBJECT',r.person.name,'']);
-  if(r.person?.dob)            rows.push(['DATE OF BIRTH',r.person.dob,'']);
-  if(r.person?.license)        rows.push(['LICENSE #',r.person.license,'']);
-  if(r.person?.license_status) rows.push(['LICENSE STATUS',r.person.license_status,licBad?'hit':'ok']);
-  if(r.vehicle?.plate)         rows.push(['PLATE',r.vehicle.plate,'']);
-  if(r.vehicle?.make)          rows.push(['VEHICLE',[r.vehicle.year,r.vehicle.make,r.vehicle.model,r.vehicle.color].filter(Boolean).join(' '),'']);
-  if(r.vehicle)                rows.push(['STOLEN FLAG',r.vehicle.stolen?'⚠ YES — REPORTED STOLEN':'NOT REPORTED STOLEN',r.vehicle.stolen?'hit':'ok']);
-  if(r.vehicle?.reg_status)    rows.push(['REGISTRATION',r.vehicle.reg_status,regBad?'warn':'ok']);
-  if(r.insurance?.status)      rows.push(['INSURANCE',r.insurance.status+(r.insurance.provider?' ('+r.insurance.provider+')':''),noIns?'warn':'ok']);
-  if(r.warrant)                rows.push(['WARRANT STATUS',r.warrant.active?('ACTIVE — '+(r.warrant.type||'')):'NONE ON FILE',r.warrant.active?'hit':'ok']);
-  if(r.warrant?.case_num)      rows.push(['CASE NUMBER',r.warrant.case_num,'']);
-  (r.flags||[]).forEach(f=>rows.push(['⚠ FLAG',f,'hit']));
-  if(r.raw_notes)              rows.push(['NOTES',r.raw_notes,'']);
+  // Build warrants if wanted
+  const warrants = [];
+  if(isWanted){
+    warrants.push({
+      type:    rand(['Arrest Warrant','Bench Warrant','Failure to Appear']),
+      charge:  rand(CRIMES),
+      issued:  randDate(2022, 2024),
+      caseNum: 'CP-'+randInt(1,99).toString().padStart(2,'0')+'-CR-'+randInt(1000000,9999999),
+      court:   rand(['Cook County Circuit Court','District Court 7-4-02','Common Pleas Court']),
+      bail:    randInt(0,1)===0 ? 'NO BAIL' : '$'+randInt(500,50000).toLocaleString(),
+    });
+  }
 
-  body.innerHTML=`
-    <div style="font-family:var(--mono);font-size:9px;color:var(--green);margin-bottom:10px;">✓ GAME MDT READ COMPLETE — ${fmtNow()}</div>
-    ${alerts}
-    <div class="info-grid">${rows.map(([k,v,cls])=>`<div class="ig-key">${k}</div><div class="ig-val ${cls}">${v}</div>`).join('')}</div>`;
-
-  // Footer action buttons
-  const btns=[];
-  if(r.person?.name) btns.push(`<button class="mdt-btn" onclick="autofillQuery('${(r.person.name||'').replace(/'/g,"\\'")}')">↗ QUERY PERSON</button>`);
-  if(r.vehicle?.plate) btns.push(`<button class="mdt-btn" onclick="autofillPlate('${(r.vehicle.plate||'').replace(/'/g,"\\'")}')">↗ QUERY PLATE</button>`);
-  if(hasW) btns.push(`<button class="mdt-btn danger" onclick="openWarrantModalFor('${((r.person?.name)||'UNKNOWN').replace(/'/g,"\\'")}')">ISSUE WARRANT</button>`);
-  btns.push(`<button class="mdt-btn" style="border-color:var(--border-lit);color:var(--text-sec);" onclick="closeMDTScan()">CLOSE</button>`);
-  foot.innerHTML=btns.join('');
+  return {
+    first, last,
+    dob:    randDate(1970, 2000),
+    dlNum:  rand(STATES_LIST) + randInt(10000000, 99999999),
+    ssn:    'XXX-XX-' + randInt(1000, 9999),
+    race:   rand(RACES),
+    height: `${randInt(5,6)}'${randInt(0,11)}"`,
+    weight: `${randInt(130,260)} LBS`,
+    eyes:   rand(EYES),
+    hair:   rand(HAIR),
+    addr:   `${randInt(100,9999)} ${rand(['OAK','MAPLE','PINE','ELM','RIDGE'])} ${rand(['ST','AVE','DR','BLVD'])}, ${rand(CITIES)}, ${rand(STATES_LIST)}`,
+    hasW:   isWanted,
+    isV:    numArrests >= 3,
+    isSO:   false,
+    nP:     numArrests,
+    warrants,
+    priors,
+  };
 }
 
 function closeMDTScan(){ document.getElementById('scan-mdt-result').classList.remove('visible'); }
@@ -1301,7 +1641,6 @@ function setMyStatus(code,label,btnEl){
   showToast(`Status — ${code} ${label}`);
 }
 
-let panicActive=false;
 function triggerPanic(){
   if(panicActive){cancelPanic();return;}
   panicActive=true;
@@ -1325,6 +1664,19 @@ function cancelPanic(){
   document.getElementById('toast').className='';
   showToast('Panic cancelled — status 10-8');
 }
+
+/* ═══ STARTUP ════════════════════════════════════════════ */
+(function initOnLoad(){
+  // Update the API key label on load
+  const lbl = document.getElementById('apikey-label');
+  if(lbl){
+    const k = localStorage.getItem('ccso_apikey');
+    if(k && k.startsWith('sk-')){
+      lbl.textContent = 'API Key: Set ✓';
+      lbl.style.color = 'var(--green)';
+    }
+  }
+})();
 
 /* ═══ KEYBOARD SHORTCUTS ══════════════════════════════════ */
 document.addEventListener('keydown',function(e){
