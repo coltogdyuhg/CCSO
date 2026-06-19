@@ -823,7 +823,10 @@ function renderPersonResult(p, extraBanner){
       <div class="rc-field"><label>HAIR</label><div class="val">${p.hair}</div></div>
       <div class="rc-field"><label>BUILD</label><div class="val">${Math.random()>.5?'SLD':'MED'}</div></div>
       <div class="rc-field"><label>SSN</label><div class="val">${p.ssn}</div></div>
-      <div class="rc-field" style="grid-column:span 2"><label>ADDRESS ON FILE</label><div class="val">${p.addr}</div></div>
+      <div class="rc-field"><label>DL STATUS</label><div class="val" style="color:${p.licSuspended?'var(--red)':'var(--green)'}">
+        ${p.licenseStatus||'VALID'}</div></div>
+      <div class="rc-field"><label>ADDRESS ON FILE</label><div class="val">${p.addr}</div></div>
+      ${p.scannedVehicle?`<div class="rc-field" style="grid-column:span 2"><label>VEHICLE ON FILE</label><div class="val">${p.scannedVehicle}${p.scannedPlate?' — PLATE: '+p.scannedPlate:''}</div></div>`:''}
     </div>
     ${warrantHTML}${priorHTML}
     <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
@@ -1413,16 +1416,29 @@ function renderMDTScanResult(r, foot){
 function runScanQuery(scanData){
   closeMDTScan();
 
-  // Parse name
-  const nameParts = (scanData.person_name||'UNKNOWN SUBJECT').trim().toUpperCase().split(/\s+/);
-  const first = nameParts.length > 1 ? nameParts.slice(1).join(' ') : rand(firstNames);
-  const last  = nameParts[0] || rand(lastNames);
+  // Parse name — game MDT usually shows "FIRSTNAME LASTNAME" or "LASTNAME, FIRSTNAME"
+  let first, last;
+  const rawName = (scanData.person_name||'').trim().toUpperCase();
+  if(rawName.includes(',')){
+    // "SMITH, JOHN" format
+    const parts = rawName.split(',').map(s=>s.trim());
+    last  = parts[0] || rand(lastNames);
+    first = parts[1] || rand(firstNames);
+  } else if(rawName.includes(' ')){
+    // "JOHN SMITH" format
+    const parts = rawName.split(/\s+/);
+    first = parts[0];
+    last  = parts.slice(1).join(' ') || rand(lastNames);
+  } else {
+    last  = rawName || rand(lastNames);
+    first = rand(firstNames);
+  }
 
-  // Generate a person whose history matches the game MDT
   const arrestCount = parseInt(scanData.arrests) || 0;
   const isWanted    = !!scanData.wanted;
 
-  const person = generatePersonFromScan(first, last, arrestCount, isWanted);
+  // Pass the full scan data so real values are used instead of random ones
+  const person = generatePersonFromScan(first, last, arrestCount, isWanted, scanData);
 
   // Save to persistent DB so future searches return same record
   dbSave(person);
@@ -1444,7 +1460,9 @@ function runScanQuery(scanData){
 }
 
 // Generate a person with history that matches what the game MDT showed
-function generatePersonFromScan(first, last, numArrests, isWanted){
+function generatePersonFromScan(first, last, numArrests, isWanted, scanData){
+  scanData = scanData || {};
+
   // Build prior record matching the arrest count from the game
   const priors = [];
   for(let i = 0; i < numArrests; i++){
@@ -1457,12 +1475,12 @@ function generatePersonFromScan(first, last, numArrests, isWanted){
     });
   }
 
-  // Build warrants if wanted
+  // Build warrants if wanted — use real warrant text from scan if available
   const warrants = [];
   if(isWanted){
     warrants.push({
       type:    rand(['Arrest Warrant','Bench Warrant','Failure to Appear']),
-      charge:  rand(CRIMES),
+      charge:  scanData.warrant_text || rand(CRIMES),
       issued:  randDate(2022, 2024),
       caseNum: 'CP-'+randInt(1,99).toString().padStart(2,'0')+'-CR-'+randInt(1000000,9999999),
       court:   rand(['Cook County Circuit Court','District Court 7-4-02','Common Pleas Court']),
@@ -1470,10 +1488,21 @@ function generatePersonFromScan(first, last, numArrests, isWanted){
     });
   }
 
+  // Use real scanned values where available, fall back to random only if not scanned
+  const dlRaw    = scanData.license || '';
+  const dobRaw   = scanData.dob     || '';
+  const licStat  = scanData.license_status || 'VALID';
+  const licBad   = /susp|revok|expir/i.test(licStat);
+
   return {
     first, last,
-    dob:    randDate(1970, 2000),
-    dlNum:  rand(STATES_LIST) + randInt(10000000, 99999999),
+    // Use real DOB from scan if we got one, otherwise random
+    dob:    dobRaw || randDate(1970, 2000),
+    // Use real license number from scan if we got one
+    dlNum:  dlRaw || (rand(STATES_LIST) + randInt(10000000, 99999999)),
+    // License status from scan
+    licenseStatus: licStat,
+    licSuspended:  licBad,
     ssn:    'XXX-XX-' + randInt(1000, 9999),
     race:   rand(RACES),
     height: `${randInt(5,6)}'${randInt(0,11)}"`,
@@ -1485,6 +1514,9 @@ function generatePersonFromScan(first, last, numArrests, isWanted){
     isV:    numArrests >= 3,
     isSO:   false,
     nP:     numArrests,
+    // Store raw vehicle info from scan for display
+    scannedPlate:   scanData.plate   || '',
+    scannedVehicle: scanData.vehicle || '',
     warrants,
     priors,
   };
