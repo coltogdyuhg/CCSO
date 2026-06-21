@@ -381,6 +381,9 @@
     <div class="nav-item" onclick="openWarrantModal()"><span class="ni">➕</span> Issue Warrant</div>
     <div class="nav-item" onclick="openCiteModal()"><span class="ni">📝</span> Write Citation</div>
     <div class="nav-item" onclick="openSavedRecords()"><span class="ni">💾</span> Saved Records</div>
+    <div class="nav-item" id="nav-silent" onclick="toggleSilentMode()">
+      <span class="ni" id="silent-icon">🔔</span> <span id="silent-label">Silent Mode: OFF</span>
+    </div>
     <div class="nav-item" onclick="openIncidentModal()"><span class="ni">📁</span> New Incident</div>
     <div id="unit-badge">
       <div class="ub-unit">CCSO-247</div>
@@ -656,6 +659,7 @@ let screenStream=null, screenVideo=null;
 let isAnalyzing=false;
 let lastCallHash='';
 let panicActive=false;
+let silentMode=false;
 
 /* ═══ CLOCK ══════════════════════════════════════════════ */
 function updateClock(){
@@ -1203,6 +1207,11 @@ async function analyzeWithAI(base64jpg, prompt){
 
 /* ═══ CALL ALERT OVERLAY ══════════════════════════════════ */
 function showCallAlert(calls){
+  // Silent mode — update CAD queue silently but don't pop the alert
+  if(silentMode){
+    showToast('📡 '+calls.length+' call(s) detected (silent mode — no alert)');
+    return;
+  }
   const list=document.getElementById('ca-calls-list');
   list.innerHTML=calls.map((c,i)=>`
     <div class="ca-call-item ${i===0?'top-call':''}" id="ca-item-${i}">
@@ -1786,6 +1795,25 @@ function loadSavedPerson(last, first){
 function deleteSavedPerson(last, first){
   try { localStorage.removeItem(dbKey(first, last)); } catch(e){}
   openSavedRecords(); // refresh
+}
+
+/* ═══ SILENT MODE ═════════════════════════════════════════ */
+function toggleSilentMode(){
+  silentMode = !silentMode;
+  const icon  = document.getElementById('silent-icon');
+  const label = document.getElementById('silent-label');
+  const navEl = document.getElementById('nav-silent');
+  if(silentMode){
+    if(icon)  icon.textContent  = '🔕';
+    if(label) label.textContent = 'Silent Mode: ON';
+    if(navEl){ navEl.style.color='var(--yellow)'; navEl.style.borderLeftColor='var(--yellow)'; }
+    showToast('Silent mode ON — call alerts suppressed.');
+  } else {
+    if(icon)  icon.textContent  = '🔔';
+    if(label) label.textContent = 'Silent Mode: OFF';
+    if(navEl){ navEl.style.color=''; navEl.style.borderLeftColor='transparent'; }
+    showToast('Silent mode OFF — call alerts resumed.');
+  }
 }
 
 /* ═══ STARTUP ════════════════════════════════════════════ */
